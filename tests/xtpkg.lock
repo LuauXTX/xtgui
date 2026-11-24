@@ -1,0 +1,13 @@
+lock_version = 2
+roots = "{\"xtest\":\"0.1.0\"}"
+
+[packages."xtest"]
+name = "xtest"
+version = "0.1.0"
+source = "git+https://github.com/LuauXTX/xtest"
+revision = "d6e7493fb308f4c1c3bc8a303a648277f356e2fa"
+integrity = "2171d63a01b2a6aee99c404d356199f4f75f4ac670436f00fd80721c531770db"
+entry = "src/init.luau"
+registry = "https://raw.githubusercontent.com/LuauXTX/xtpkg-registry/main"
+requirements = "{}"
+dependencies = "{}"

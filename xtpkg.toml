@@ -1,8 +1,8 @@
 [package]
-"entry" = "src/main.luau"
+"entry" = "src/init.luau"
 "name" = "xtgui"
 "version" = "0.1.0"
-"description" = ""
+"description" = "Retained, reactive desktop UI for LuauXTX's native graphics backend"
 "license" = "MIT"
 "repository" = "https://github.com/LuauXTX/xtgui"
 

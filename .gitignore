@@ -12,3 +12,6 @@ Desktop.ini
 *.swo
 *~
 !/xtpkg.lock
+/local/
+/tests/packages/
+__pycache__/

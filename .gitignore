@@ -1,0 +1,14 @@
+/packages/
+.xtpkg-*
+*-submission.json
+.env
+.env.*
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+!/xtpkg.lock

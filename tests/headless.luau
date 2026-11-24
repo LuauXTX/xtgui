@@ -1,0 +1,11 @@
+-- The runner sets an impossible adapter name: exercise actual initialization failure.
+local gui = require("../src/init")
+local app = gui.createApp({ title = "XTGUI unavailable adapter" })
+local font = app:loadFont(nil, 16)
+app:render(gui.Text({ text = "A catchable initialization failure" }))
+local ok, reason = pcall(function()
+    app:run()
+end)
+assert(not ok and tostring(reason):find("XTGUI native graphics", 1, true), tostring(reason))
+assert(app.destroyed and font:isDisposed())
+print("XTGUI headless/unavailable-adapter cleanup passed")

@@ -1,0 +1,66 @@
+name: XTGUI tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: MINTILER-DEV/LuauXTX
+          ref: f42d4926cbd305fe9bc13c4b538e39d806ae5f66
+          path: local/runtime
+          token: ${{ secrets.XTGUI_DEPENDENCIES_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: MINTILER-DEV/xtpkg
+          ref: fba44d0ff8589e95a17e8efdb90d95d82946cf41
+          path: local/xtpkg
+          token: ${{ secrets.XTGUI_DEPENDENCIES_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: LuauXTX/xtest
+          ref: d6e7493fb308f4c1c3bc8a303a648277f356e2fa
+          path: local/xtest
+          token: ${{ secrets.XTGUI_DEPENDENCIES_TOKEN || github.token }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux graphics dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb mesa-vulkan-drivers fonts-dejavu-core libxkbcommon-x11-0
+      - name: Build native runtime
+        working-directory: local/runtime
+        run: cargo build --release --locked -p luauxtx
+      - name: Windows CPU, GPU, examples and package integration
+        if: runner.os == 'Windows'
+        run: python tests/run.py --runtime local/runtime/target/release/luauxtx.exe --xtpkg local/xtpkg --xtest local/xtest --gui --package
+      - name: Linux CPU, GPU, examples and package integration
+        if: runner.os == 'Linux'
+        env:
+          WGPU_BACKEND: vulkan
+        run: xvfb-run -a python tests/run.py --runtime local/runtime/target/release/luauxtx --xtpkg local/xtpkg --xtest local/xtest --gui --package
+      - name: macOS CPU and package integration
+        if: runner.os == 'macOS'
+        run: python tests/run.py --runtime local/runtime/target/release/luauxtx --xtpkg local/xtpkg --xtest local/xtest --package

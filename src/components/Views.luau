@@ -270,15 +270,11 @@ return function(gui)
         })
     end)
     define("TreeView", function(p)
-        local expanded, setExpanded = control(
-            {
-                value = p.expanded,
-                defaultValue = p.defaultExpanded or {},
-                onChange = p.onExpandedChange,
-            },
-            "value",
-            {}
-        )
+        local expanded, setExpanded = control({
+            value = p.expanded,
+            defaultValue = p.defaultExpanded or {},
+            onChange = p.onExpandedChange,
+        }, "value", {})
         local selected, setSelected = control(p, "value", nil)
         local items = State.read(p.items) or {}
         local flat = {}

@@ -102,8 +102,9 @@ return function(gui)
                     role = "dialog",
                     ariaLabel = p.ariaLabel,
                     onKeyDown = function(e)
-                        if e.key == "Escape" then
+                        if e.key == "Escape" and not e.defaultPrevented then
                             e:preventDefault()
+                            e:stopPropagation()
                             close()
                         end
                     end,
@@ -163,8 +164,9 @@ return function(gui)
                     role = "dialog",
                     ariaLabel = p.ariaLabel or p.title,
                     onKeyDown = function(e)
-                        if e.key == "Escape" then
+                        if e.key == "Escape" and not e.defaultPrevented then
                             e:preventDefault()
+                            e:stopPropagation()
                             close()
                         end
                     end,
@@ -177,9 +179,13 @@ return function(gui)
         local result = {}
         for i, item in ipairs(items or {}) do
             if type(item) == "table" then
+                local itemValue = item.value
+                if itemValue == nil then
+                    itemValue = item.label
+                end
                 table.insert(result, {
                     label = tostring(item.label or item.value or i),
-                    value = item.value ~= nil and item.value or item.label,
+                    value = itemValue,
                     key = item.key or item.value or i,
                     disabled = item.disabled,
                 })
@@ -232,8 +238,11 @@ return function(gui)
         end
         local function keyboard(e)
             if e.key == "Escape" then
-                open:set(false)
-                e:preventDefault()
+                if open:get() then
+                    open:set(false)
+                    e:preventDefault()
+                    e:stopPropagation()
+                end
             elseif e.key == "ArrowDown" or e.key == "ArrowUp" then
                 if not open:get() then
                     open:set(true)
@@ -449,6 +458,7 @@ return function(gui)
                         if e.key == "Escape" then
                             position:set(nil)
                             e:preventDefault()
+                            e:stopPropagation()
                         elseif e.key == "ArrowDown" or e.key == "ArrowUp" then
                             app.focus:tab(e.key == "ArrowUp")
                             e:preventDefault()

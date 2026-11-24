@@ -17,7 +17,8 @@ function C.dimension(value, available, name)
     if type(value) == "string" then
         local percent = value:match("^(%d+%.?%d*)%%$")
         assert(percent, "XTGUI invalid " .. (name or "dimension") .. ": " .. value)
-        return available * tonumber(percent) / 100
+        local ratio = C.number(tonumber(percent), "percentage", 0, 1e7) / 100
+        return C.number(available * ratio, name or "dimension", 0, 1e7)
     end
     return C.number(value, name or "dimension", 0, 1e7)
 end

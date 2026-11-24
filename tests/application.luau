@@ -68,13 +68,11 @@ return function(t)
     t.test("Unicode input, clipboard, undo, composition and caret", function()
         local app = gui.createApp()
         local text = gui.state("")
-        app:render(
-            gui.Column({
-                children = {
-                    gui.TextArea({ id = "editor", value = text, width = 300, height = 100 }),
-                },
-            })
-        )
+        app:render(gui.Column({
+            children = {
+                gui.TextArea({ id = "editor", value = text, width = 300, height = 100 }),
+            },
+        }))
         app:find("editor"):focus()
         app:dispatch({ type = "textInput", text = "aé👩‍💻" })
         assert(text:get() == "aé👩‍💻")

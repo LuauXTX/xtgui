@@ -47,6 +47,8 @@ local function shape(a, b, key)
 end
 function Tween.new(element, properties, options)
     assert(element and element.alive, "XTGUI tween needs a live element")
+    assert(type(properties) == "table", "XTGUI tween properties must be a table")
+    Style.validate(properties, "tween")
     options = options or {}
     serial += 1
     local easing = type(options.easing) == "function" and options.easing
@@ -79,6 +81,10 @@ function Tween.new(element, properties, options)
         id = serial,
         status = "running",
     }, Tween)
+    if self.app._animationWake then
+        self.app._animationWake()
+        self.app._animationWake = nil
+    end
     self.app._tweens[self] = true
     self.app:_redraw()
     return self
@@ -89,6 +95,10 @@ function Tween:cancel()
     end
     self.status = "cancelled"
     self.app._tweens[self] = nil
+    if not next(self.app._tweens) and self.app._animationWake then
+        self.app._animationWake()
+        self.app._animationWake = nil
+    end
     if self.options.onCancel then
         self.options.onCancel(self)
     end
@@ -186,7 +196,12 @@ function Tween.attach(Application)
             tween:_step(now)
         end
         if next(self._tweens) and not self._animationWake then
-            self._animationWake = self:after(1 / 60, function()
+            local wait = math.huge
+            for tween in pairs(self._tweens) do
+                local remaining = tween.start + tween.delay - now
+                wait = math.min(wait, remaining > 0 and remaining or 1 / 60)
+            end
+            self._animationWake = self:after(wait, function()
                 self._animationWake = nil
                 self:_redraw()
             end)

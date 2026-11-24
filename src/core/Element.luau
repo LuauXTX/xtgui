@@ -1,4 +1,5 @@
 local Element = {}
+local State = require("./State")
 Element.__index = Element
 local serial = 0
 function Element.new(kind, app)
@@ -38,20 +39,28 @@ function Element:invalidate()
 end
 function Element:setProps(properties)
     assert(self.alive, "XTGUI element was destroyed: " .. self.name)
+    assert(not State.rendering, "XTGUI setProps cannot run during component rendering")
+    assert(type(properties) == "table", "XTGUI setProps expects a table")
+    assert(
+        properties.key == nil or properties.key == self.key,
+        "XTGUI setProps cannot change an element's key"
+    )
+    local props = table.clone(self._nextDescriptor and self._nextDescriptor.props or self.rawProps)
+    self._clearAnimated = self._clearAnimated or {}
     for key, value in pairs(properties) do
-        self.rawProps[key] = value
-        if self.data.animated then
-            self.data.animated[key] = nil
-        end
+        props[key] = value
+        self._clearAnimated[key] = true
     end
-    self.descriptor = { type = self.kind, props = self.rawProps, key = self.key }
+    self._nextDescriptor = { type = self.kind, props = props, key = self.key }
     self:invalidate()
     return self
 end
 function Element:destroy()
+    assert(not State.rendering, "XTGUI destroy cannot run during component rendering")
     self.app:_remove(self)
 end
 function Element:focus()
+    assert(not State.rendering, "XTGUI focus belongs in an event or effect")
     return self.app.focus:set(self)
 end
 function Element:scrollTo(x, y)

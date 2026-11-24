@@ -79,15 +79,13 @@ return function(t)
         end
         local selected = gui.state(nil)
         local app = gui.createApp()
-        app:render(
-            gui.ListView({
-                id = "list",
-                items = items,
-                height = 160,
-                rowHeight = 32,
-                value = selected,
-            })
-        )
+        app:render(gui.ListView({
+            id = "list",
+            items = items,
+            height = 160,
+            rowHeight = 32,
+            value = selected,
+        }))
         local list = app:find("list")
         assert(#list.children[1].children <= 12)
         list:scrollTo(0, 32000)

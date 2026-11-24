@@ -41,16 +41,13 @@ function Paint.commands(node)
                 local offset = align == "center" and ((width or layout.width) - run.width) / 2
                     or align == "end" and (width or layout.width) - run.width
                     or 0
-                add(
-                    "text",
-                    {
-                        text = run.text,
-                        font = layout.font,
-                        x = x + offset,
-                        y = y + run.y,
-                        color = Style.color(color),
-                    }
-                )
+                add("text", {
+                    text = run.text,
+                    font = layout.font,
+                    x = x + offset,
+                    y = y + run.y,
+                    color = Style.color(color),
+                })
             end
         end
     end

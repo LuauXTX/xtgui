@@ -281,7 +281,7 @@ function S.resolve(node, parent, theme, ignoreAnimation)
         flexGrow = 0,
         flexShrink = 1,
     }
-    if node.props.theme then
+    if p.theme then
         out.color = colors.text
     end
     local kind = node.kind

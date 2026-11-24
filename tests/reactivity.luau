@@ -97,15 +97,12 @@ return function(t)
             R.prepare(
                 a,
                 nil,
-                host(
-                    "Column",
-                    {
-                        children = {
-                            host("Container", { key = "a" }),
-                            host("Container", { key = "b" }),
-                        },
-                    }
-                )
+                host("Column", {
+                    children = {
+                        host("Container", { key = "a" }),
+                        host("Container", { key = "b" }),
+                    },
+                })
             )
         )
         local first, second = a.root.children[1], a.root.children[2]
@@ -114,15 +111,12 @@ return function(t)
             R.prepare(
                 a,
                 a.root,
-                host(
-                    "Column",
-                    {
-                        children = {
-                            host("Container", { key = "b" }),
-                            host("Container", { key = "a" }),
-                        },
-                    }
-                )
+                host("Column", {
+                    children = {
+                        host("Container", { key = "b" }),
+                        host("Container", { key = "a" }),
+                    },
+                })
             )
         )
         assert(a.root.children[1] == second and a.root.children[2] == first)

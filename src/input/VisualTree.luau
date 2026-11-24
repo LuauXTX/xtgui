@@ -18,6 +18,29 @@ function V.sorted(children)
 end
 function V.update(app)
     local portals = {}
+    local layers = {}
+    local function collect(node, base, pointerDisabled)
+        if node.style.display == "none" then
+            return
+        end
+        local disabled = pointerDisabled or node.props.pointerEvents == "none"
+        if node.props.portal then
+            base += (node.style.zIndex or 0)
+            table.insert(
+                layers,
+                { node = node, z = base, order = #layers + 1, pointerDisabled = pointerDisabled }
+            )
+        end
+        for _, child in ipairs(V.sorted(node.children)) do
+            collect(child, base, disabled)
+        end
+    end
+    if app.root then
+        collect(app.root, 0, false)
+    end
+    table.sort(layers, function(a, b)
+        return a.z < b.z or (a.z == b.z and a.order < b.order)
+    end)
     local entries = {}
     local order = 0
     local function visit(node, parentWorld, clips, portal, pointerDisabled)
@@ -25,7 +48,6 @@ function V.update(app)
             return
         end
         if node.props.portal and not portal then
-            table.insert(portals, node)
             return
         end
         local localMatrix = G.transform(node.box, node.style.transform)
@@ -55,11 +77,9 @@ function V.update(app)
     if app.root then
         visit(app.root, G.identity, {}, false)
     end
-    local index = 1
-    while index <= #portals do
-        local node = portals[index]
-        visit(node, G.identity, {}, true)
-        index += 1
+    for _, layer in ipairs(layers) do
+        table.insert(portals, layer.node)
+        visit(layer.node, G.identity, {}, true, layer.pointerDisabled)
     end
     app._visual = entries
     app._portals = portals

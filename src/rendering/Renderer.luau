@@ -49,12 +49,11 @@ function Renderer.draw(app, frame)
     local viewport = { x = 0, y = 0, width = app.width, height = app.height }
     local visit
     visit = function(node, alpha, portal)
-        if
-            node.style.display == "none"
-            or node.box.width <= 0
-            or node.box.height <= 0
-            or (node.props.portal and not portal)
-        then
+        if node.style.display == "none" or (node.props.portal and not portal) then
+            return
+        end
+        local clip = node.style.overflow == "hidden" or node.kind == "ScrollView"
+        if clip and (node.box.width <= 0 or node.box.height <= 0) then
             return
         end
         alpha *= node.style.opacity
@@ -71,7 +70,12 @@ function Renderer.draw(app, frame)
             })
             frame:pushTransform({ x = -node.box.x, y = -node.box.y })
         end
-        if alpha > 0 and G.overlaps(G.aabb(node.box, node.world), viewport) then
+        if
+            alpha > 0
+            and node.box.width > 0
+            and node.box.height > 0
+            and G.overlaps(G.aabb(node.box, node.world), viewport)
+        then
             stats.nodes += 1
             if not node.paintDirty then
                 stats.cached += 1
@@ -95,7 +99,6 @@ function Renderer.draw(app, frame)
                 frame:popClip()
             end
         end
-        local clip = node.style.overflow == "hidden" or node.kind == "ScrollView"
         if clip then
             frame:pushClip(node.box)
         end

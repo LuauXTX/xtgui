@@ -45,6 +45,51 @@ function Focus:trap()
     end
     return trap
 end
+function Focus:syncTraps()
+    local trap = self:trap()
+    if trap == self.trapCurrent then
+        return
+    end
+    self.trapRestore = self.trapRestore or {}
+    local previous = self.trapCurrent
+    local stillVisible = false
+    local restore
+    for _, node in ipairs(self.app._visual) do
+        if node == previous and node.props.focusTrap then
+            stillVisible = true
+            break
+        end
+    end
+    if previous and not stillVisible then
+        local record = self.trapRestore[previous]
+        self.trapRestore[previous] = nil
+        while record do
+            restore = record.focus
+            if restore and self:eligible(restore) then
+                break
+            end
+            local parent = record.previous
+            record = parent and self.trapRestore[parent]
+            if parent then
+                self.trapRestore[parent] = nil
+            end
+        end
+    end
+    if trap and not self.trapRestore[trap] then
+        self.trapRestore[trap] =
+            { focus = restore or self.current, previous = stillVisible and previous or nil }
+    end
+    self.trapCurrent = trap
+    if not (restore and self:set(restore, true)) then
+        self:set(nil)
+        if trap then
+            self:tab(false)
+        end
+    end
+    if not trap then
+        self.trapRestore = {}
+    end
+end
 function Focus:set(node, visible)
     if node and (not self:eligible(node) or (self:trap() and not self:trap():contains(node))) then
         return false

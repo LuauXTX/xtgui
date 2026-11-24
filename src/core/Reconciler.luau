@@ -132,6 +132,7 @@ function R.prepare(app, old, value)
             State.rendering = true
             local ok, deps, output = pcall(function()
                 return State.capture(function()
+                    State.read(description.props.disabled)
                     return kind.render(description.props, app.api)
                 end)
             end)
@@ -228,6 +229,13 @@ function R.commit(app, plan, parent)
     node.key = plan.key
     node.rawProps = table.clone(plan.description.props)
     node.props = plan.props
+    if node.data.animated and node._clearAnimated then
+        for key in pairs(node._clearAnimated) do
+            node.data.animated[key] = nil
+        end
+    end
+    node._clearAnimated = nil
+    node._nextDescriptor = nil
     node.dirty = false
     node.subtreeDirty = false
     node.paintDirty = true
@@ -237,6 +245,13 @@ function R.commit(app, plan, parent)
     if plan.scope then
         node.hooks = plan.scope.hooks
         node.hookCount = plan.scope.hookCount
+        for _, change in ipairs(plan.scope.computedChanges) do
+            table.insert(app._afterCommit, function()
+                if node.alive then
+                    State.commitComputed(change, node)
+                end
+            end)
+        end
         for _, pending in ipairs(plan.scope.pendingEffects) do
             pending.effect.callback = pending.callback
             pending.effect.started = true

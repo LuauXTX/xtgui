@@ -12,15 +12,22 @@ local function track(self)
         State.tracking[self] = self.version or 0
     end
 end
-local function notify(self)
+local function notify(self, exclude)
     local listeners = {}
     for listener in pairs(self.listeners) do
         table.insert(listeners, listener)
     end
     for _, listener in ipairs(listeners) do
-        if listener.active ~= false then
+        if listener ~= exclude and listener.active ~= false then
             listener:invalidate()
         end
+    end
+end
+function State.commitComputed(change, owner)
+    local value = change.value
+    if value.dirty or change.cached ~= value.value then
+        value.version = (value.version or 0) + 1
+        notify(value, owner)
     end
 end
 function State.capture(callback)

@@ -44,31 +44,37 @@ function Timeline:play(options)
         end
         return self
     end
-    for _, step in ipairs(self.steps) do
-        local opts = table.clone(step.options)
-        local completed = opts.onComplete
-        local cancelled = opts.onCancel
-        opts.onComplete = function(tween)
-            if completed then
-                completed(tween)
-            end
-            remaining -= 1
-            if remaining == 0 and self.status == "running" then
-                self.status = "completed"
-                if options.onComplete then
-                    options.onComplete(self)
+    local ok, reason = pcall(function()
+        for _, step in ipairs(self.steps) do
+            local opts = table.clone(step.options)
+            local completed = opts.onComplete
+            local cancelled = opts.onCancel
+            opts.onComplete = function(tween)
+                if completed then
+                    completed(tween)
+                end
+                remaining -= 1
+                if remaining == 0 and self.status == "running" then
+                    self.status = "completed"
+                    if options.onComplete then
+                        options.onComplete(self)
+                    end
                 end
             end
-        end
-        opts.onCancel = function(tween)
-            if cancelled then
-                cancelled(tween)
+            opts.onCancel = function(tween)
+                if cancelled then
+                    cancelled(tween)
+                end
+                if self.status == "running" then
+                    self:cancel()
+                end
             end
-            if self.status == "running" then
-                self:cancel()
-            end
+            table.insert(self.tweens, Tween.new(step.element, step.properties, opts))
         end
-        table.insert(self.tweens, Tween.new(step.element, step.properties, opts))
+    end)
+    if not ok then
+        self:cancel()
+        error(reason, 0)
     end
     return self
 end

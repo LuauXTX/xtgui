@@ -5,6 +5,8 @@ local Style = require("../styling/Style")
 local Theme = require("../styling/Theme")
 local Text = require("../rendering/TextLayout")
 local Backend = require("../rendering/Backend")
+local Geometry = require("../rendering/Geometry")
+local State = require("../core/State")
 local L = {}
 local function equal(a, b, depth)
     if a == b then
@@ -48,8 +50,9 @@ local delegate = {
     "display",
 }
 function L.styles(node, parentStyle, theme, disabled)
-    node.theme = node.props.theme and Theme.resolve(node.props.theme, theme) or theme
-    node.disabled = disabled or node.props.disabled == true
+    local ownTheme = type(node.kind) == "string" and node.props.theme
+    node.theme = ownTheme and Theme.resolve(ownTheme, theme) or theme
+    node.disabled = disabled or State.read(node.props.disabled) == true
     if type(node.kind) == "string" and node.app._transition then
         node.app:_transition(
             node,
@@ -106,7 +109,30 @@ local function gridInfo(node, width, height)
     local cells, rows = Grid.cells(children, columns)
     local columnGap = node.style.columnGap or node.style.gap
     local rowGap = node.style.rowGap or node.style.gap
-    local tracks = Grid.tracks(node.props.columns, columns, width, columnGap)
+    local natural = {}
+    if type(node.props.columns) == "table" then
+        for _, cell in ipairs(cells) do
+            local needsAuto = false
+            for i = cell.column, cell.column + cell.columnSpan - 1 do
+                if node.props.columns[i] == "auto" then
+                    needsAuto = true
+                end
+            end
+            if needsAuto then
+                local measured = L.measure(cell.node, width, height)
+                local m = cell.node.style.margin
+                local each = math.max(
+                    0,
+                    (measured + m.left + m.right - columnGap * (cell.columnSpan - 1))
+                        / cell.columnSpan
+                )
+                for i = cell.column, cell.column + cell.columnSpan - 1 do
+                    natural[i] = math.max(natural[i] or 0, each)
+                end
+            end
+        end
+    end
+    local tracks = Grid.tracks(node.props.columns, columns, width, columnGap, natural)
     return cells, rows, tracks, columnGap, rowGap
 end
 function L.measure(node, availableW, availableH)
@@ -247,7 +273,7 @@ function L.arrange(node, x, y, width, height)
         node.app:_markDirty(previous)
         node.app:_markDirty(node.box)
     end
-    if changed and node.props.onLayout then
+    if changed and node.props.onLayout and not node.app.preflight then
         table.insert(node.app._afterLayout, function()
             if node.alive then
                 node.props.onLayout(node:getBounds(), node, previous)
@@ -286,7 +312,21 @@ function L.arrange(node, x, y, width, height)
     if kind == "Grid" then
         local cells, rows, tracks, cg, rg = gridInfo(node, iw, ih)
         local rowDef = node.props.rows or table.create(rows, "auto")
-        local rowTracks = Grid.tracks(rowDef, rows, ih, rg, node.gridNatural)
+        local natural = {}
+        for _, cell in ipairs(cells) do
+            local cw = cg * (cell.columnSpan - 1)
+            for i = cell.column, cell.column + cell.columnSpan - 1 do
+                cw += tracks[i]
+            end
+            local _, ch = L.measure(cell.node, cw, ih)
+            local m = cell.node.style.margin
+            local each =
+                math.max(0, (ch + m.top + m.bottom - rg * (cell.rowSpan - 1)) / cell.rowSpan)
+            for i = cell.row, cell.row + cell.rowSpan - 1 do
+                natural[i] = math.max(natural[i] or 0, each)
+            end
+        end
+        local rowTracks = Grid.tracks(rowDef, rows, ih, rg, natural)
         for _, cell in ipairs(cells) do
             local cx = ix
             local cy = iy
@@ -440,6 +480,45 @@ function L.run(app)
     L.styles(app.root, nil, app.theme, false)
     L.measure(app.root, app.width, app.height)
     L.arrange(app.root, 0, 0, app.width, app.height)
+    local function world(node)
+        local path = {}
+        local current = node
+        while current do
+            table.insert(path, current)
+            if current.props.portal then
+                break
+            end
+            current = current.parent
+        end
+        local matrix = Geometry.identity
+        for i = #path, 1, -1 do
+            matrix =
+                Geometry.multiply(matrix, Geometry.transform(path[i].box, path[i].style.transform))
+        end
+        return matrix
+    end
+    local function anchors(node)
+        local anchor = node.props.anchor
+        anchor = type(anchor) == "table" and anchor.current or anchor
+        if node.props.portal and anchor and anchor.box then
+            local bounds = Geometry.aabb(anchor.box, world(anchor))
+            L.arrange(
+                node,
+                math.clamp(bounds.x, 0, math.max(0, app.width - node.box.width)),
+                math.clamp(
+                    bounds.y + bounds.height + (node.props.offset or 4),
+                    0,
+                    math.max(0, app.height - node.box.height)
+                ),
+                node.box.width,
+                node.box.height
+            )
+        end
+        for _, child in ipairs(node.children) do
+            anchors(child)
+        end
+    end
+    anchors(app.root)
     app.diagnostics.layoutTime = os.clock() - started
     app.diagnostics.layouts += 1
 end

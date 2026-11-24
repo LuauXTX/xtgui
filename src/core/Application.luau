@@ -14,9 +14,11 @@ local Component = require("./Component")
 local R = require("./Reconciler")
 local Scheduler = require("./Scheduler")
 local State = require("./State")
+local Validation = require("./Validation")
 local Application = {}
 Application.__index = Application
 function Application.new(options, api)
+    assert(not State.rendering, "XTGUI createApp must be called outside component rendering")
     options = options or {}
     C.number(options.width or 800, "window width", 1, 16384)
     C.number(options.height or 600, "window height", 1, 16384)
@@ -96,48 +98,10 @@ function Application:_layout(node)
     self:_redraw()
 end
 function Application:_preflight(plan)
-    local function visit(item, parentStyle, theme, disabled)
-        local node = item.node
-        local props = item.reuse and node.props or item.props
-        local shadow = {
-            kind = node.kind,
-            props = props,
-            disabled = disabled or props.disabled,
-            interaction = node.interaction,
-        }
-        local ownTheme = props.theme and Theme.resolve(props.theme, theme) or theme
-        local style = Style.resolve(shadow, parentStyle, ownTheme)
-        C.sides(style, self.width, self.height)
-        if
-            node.kind == "Text"
-            or node.kind == "Button"
-            or node.kind == "IconButton"
-            or node.kind == "TextInput"
-            or node.kind == "TextArea"
-            or node.kind == "Checkbox"
-            or node.kind == "RadioButton"
-            or node.kind == "Switch"
-        then
-            Backend.font(self, style)
-        end
-        if node.kind == "Image" then
-            Backend.image(props.source)
-        end
-        if item.reuse then
-            for _, child in ipairs(node.children) do
-                visit({ node = child, reuse = true }, style, ownTheme, shadow.disabled)
-            end
-        else
-            for _, child in ipairs(item.children) do
-                visit(child, style, ownTheme, shadow.disabled)
-            end
-        end
-    end
-    if plan then
-        visit(plan, plan.parent and plan.parent.style, self.theme, false)
-    end
+    Validation.run(self, plan)
 end
 function Application:render(callback)
+    assert(not State.rendering, "XTGUI render cannot be called from a component render")
     self:_live()
     assert(
         type(callback) == "function" or type(callback) == "table",
@@ -189,7 +153,14 @@ function Application:flush()
                 end
                 if node.alive and not covered then
                     node.dirty = true
-                    local plan = R.prepare(self, node, node.descriptor)
+                    local prepared, plan =
+                        pcall(R.prepare, self, node, node._nextDescriptor or node.descriptor)
+                    if not prepared then
+                        node._nextDescriptor = nil
+                        node._clearAnimated = nil
+                        node.dirty = false
+                        error(plan, 0)
+                    end
                     R.commit(self, plan, node.parent)
                     self:_layout(node)
                     self._needsStyles = true
@@ -216,22 +187,7 @@ function Application:flush()
                 if self.focus.current and not self.focus:eligible(self.focus.current) then
                     self.focus:set(nil)
                 end
-                local trap = self.focus:trap()
-                if trap ~= self._focusTrap then
-                    if trap then
-                        self._restoreFocus = self.focus.current
-                        self._focusTrap = trap
-                        self.focus:set(nil)
-                        self.focus:tab(false)
-                    else
-                        self._focusTrap = nil
-                        local restore = self._restoreFocus
-                        self._restoreFocus = nil
-                        if restore and restore.alive then
-                            self.focus:set(restore, true)
-                        end
-                    end
-                end
+                self.focus:syncTraps()
             end
             if
                 not next(self._pending)
@@ -250,6 +206,9 @@ function Application:flush()
     end
 end
 function Application:_unmounted(node)
+    if self._validationCache then
+        self._validationCache[node] = nil
+    end
     self._pending[node] = nil
     if self.focus.current == node then
         self.focus.current = nil
@@ -574,6 +533,8 @@ function Application:destroy()
         self.root = nil
     end
     self.destroyed = true
+    self._validationCache = {}
+    self.focus.trapRestore = {}
     self._viewport:dispose()
     self._visual = {}
     self._pending = {}

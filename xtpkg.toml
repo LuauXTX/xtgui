@@ -9,4 +9,4 @@
 [dependencies]
 
 [scripts]
-"start" = "luauxtx src/main.luau"
+"start" = "luauxtx examples/gallery.luau"

@@ -1,84 +1,295 @@
 return function(t)
-    local gui=require("../src/init")
-    local Paint=require("../src/rendering/Paint")
-    local function click(app,node)
-        assert(node,"missing click target");local b=node.box
-        app:dispatch({type="mouseMove",x=b.x+b.width/2,y=b.y+b.height/2});app:dispatch({type="mouseDown",button="left"});app:dispatch({type="mouseUp",button="left"})
+    local gui = require("../src/init")
+    local Paint = require("../src/rendering/Paint")
+    local function click(app, node)
+        assert(node, "missing click target")
+        local b = node.box
+        app:dispatch({ type = "mouseMove", x = b.x + b.width / 2, y = b.y + b.height / 2 })
+        app:dispatch({ type = "mouseDown", button = "left" })
+        app:dispatch({ type = "mouseUp", button = "left" })
     end
-    local function role(app,name)
-        for _,node in ipairs(app._visual) do if node.props.role==name then return node end end
+    local function role(app, name)
+        for _, node in ipairs(app._visual) do
+            if node.props.role == name then
+                return node
+            end
+        end
     end
-    t.test("Select opens, navigates options, commits selection and dismisses",function()
-        local value=gui.state("one");local app=gui.createApp({width=500,height=400})
-        app:render(gui.Column({children={gui.Select({id="select",value=value,items={"one","two","three"}})}}))
-        app:find("select"):focus();app:dispatch({type="keyDown",key="ArrowDown"});assert(#app._portals==2)
-        app:dispatch({type="keyDown",key="ArrowDown"});app:dispatch({type="keyDown",key="Enter"})
-        assert(value:get()=="two" and #app._portals==0)
-        click(app,app:find("select"));app:dispatch({type="keyDown",key="Escape"});assert(#app._portals==0)
-        app:destroy();value:dispose()
+    t.test("Select opens, navigates options, commits selection and dismisses", function()
+        local value = gui.state("one")
+        local app = gui.createApp({ width = 500, height = 400 })
+        app:render(gui.Column({
+            children = {
+                gui.Select({
+                    id = "select",
+                    value = value,
+                    items = {
+                        "one",
+                        "two",
+                        "three",
+                    },
+                }),
+            },
+        }))
+        app:find("select"):focus()
+        app:dispatch({ type = "keyDown", key = "ArrowDown" })
+        assert(#app._portals == 2)
+        app:dispatch({ type = "keyDown", key = "ArrowDown" })
+        app:dispatch({ type = "keyDown", key = "Enter" })
+        assert(value:get() == "two" and #app._portals == 0)
+        click(app, app:find("select"))
+        app:dispatch({ type = "keyDown", key = "Escape" })
+        assert(#app._portals == 0)
+        app:destroy()
+        value:dispose()
     end)
-    t.test("Modal renders outside zero-height owners, traps focus and restores it",function()
-        local open=gui.state(false);local app=gui.createApp()
-        app:render(gui.Column({children={gui.Button({id="opener",text="Open",onClick=function()open:set(true)end}),gui.Modal({id="dialog",open=open,children={gui.Button({id="inside",text="Inside"})}})}}))
-        click(app,app:find("opener"));assert(role(app,"dialog") and #app._portals==2)
-        assert(app.focus.current==app:find("inside"));app:dispatch({type="keyDown",key="Tab"});assert(app.focus.current==app:find("inside"))
-        app:dispatch({type="keyDown",key="Escape"});assert(not open:get() and app.focus.current==app:find("opener"))
-        app:destroy();open:dispose()
+    t.test("Modal renders outside zero-height owners, traps focus and restores it", function()
+        local open = gui.state(false)
+        local app = gui.createApp()
+        app:render(gui.Column({
+            children = {
+                gui.Button({
+                    id = "opener",
+                    text = "Open",
+                    onClick = function()
+                        open:set(true)
+                    end,
+                }),
+                gui.Modal({
+                    id = "dialog",
+                    open = open,
+                    children = { gui.Button({ id = "inside", text = "Inside" }) },
+                }),
+            },
+        }))
+        click(app, app:find("opener"))
+        assert(role(app, "dialog") and #app._portals == 2)
+        assert(app.focus.current == app:find("inside"))
+        app:dispatch({ type = "keyDown", key = "Tab" })
+        assert(app.focus.current == app:find("inside"))
+        app:dispatch({ type = "keyDown", key = "Escape" })
+        assert(not open:get() and app.focus.current == app:find("opener"))
+        app:destroy()
+        open:dispose()
     end)
-    t.test("10,000 item virtualization, scroll recycling and keyboard selection",function()
-        local items={};for i=1,10000 do items[i]={key=i,label="Item "..i} end
-        local selected=gui.state(nil);local app=gui.createApp()
-        app:render(gui.ListView({id="list",items=items,height=160,rowHeight=32,value=selected}))
-        local list=app:find("list");assert(#list.children[1].children<=12)
-        list:scrollTo(0,32000);app:flush();assert(#list.children[1].children<=12 and list.children[1].children[1].key>=997)
-        list:focus();app:dispatch({type="keyDown",key="End"});assert(selected:get()==10000)
-        assert(list.data.scrollY>300000 and #list.children[1].children<=12)
-        app:destroy();selected:dispose()
+    t.test("10,000 item virtualization, scroll recycling and keyboard selection", function()
+        local items = {}
+        for i = 1, 10000 do
+            items[i] = { key = i, label = "Item " .. i }
+        end
+        local selected = gui.state(nil)
+        local app = gui.createApp()
+        app:render(
+            gui.ListView({
+                id = "list",
+                items = items,
+                height = 160,
+                rowHeight = 32,
+                value = selected,
+            })
+        )
+        local list = app:find("list")
+        assert(#list.children[1].children <= 12)
+        list:scrollTo(0, 32000)
+        app:flush()
+        assert(#list.children[1].children <= 12 and list.children[1].children[1].key >= 997)
+        list:focus()
+        app:dispatch({ type = "keyDown", key = "End" })
+        assert(selected:get() == 10000)
+        assert(list.data.scrollY > 300000 and #list.children[1].children <= 12)
+        app:destroy()
+        selected:dispose()
     end)
-    t.test("Table sorting and TreeView expansion are interactive",function()
-        local app=gui.createApp();local expanded=gui.state({});local selected=gui.state(nil)
-        app:render(gui.Column({children={gui.Table({id="table",height=120,sortable=true,columns={{key="name",label="Name"}},items={{key=1,name="Z"},{key=2,name="A"}}}),gui.TreeView({id="tree",height=120,expanded=expanded,value=selected,items={{key="root",label="Root",children={{key="leaf",label="Leaf"}}}}})}}))
-        click(app,role(app,"columnheader"));local rows
-        for _,node in ipairs(app._visual) do if node.props.role=="rowgroup" then rows=node end end
-        assert(rows.children[1].children[1].key==2)
-        local tree=app:find("tree");tree:focus();app:dispatch({type="keyDown",key="ArrowDown"});assert(selected:get()=="root")
-        app:dispatch({type="keyDown",key="ArrowRight"});assert(expanded:get().root)
-        app:dispatch({type="keyDown",key="ArrowDown"});assert(selected:get()=="leaf")
-        app:destroy();expanded:dispose();selected:dispose()
+    t.test("Table sorting and TreeView expansion are interactive", function()
+        local app = gui.createApp()
+        local expanded = gui.state({})
+        local selected = gui.state(nil)
+        app:render(gui.Column({
+            children = {
+                gui.Table({
+                    id = "table",
+                    height = 120,
+                    sortable = true,
+                    columns = { { key = "name", label = "Name" } },
+                    items = { { key = 1, name = "Z" }, { key = 2, name = "A" } },
+                }),
+                gui.TreeView({
+                    id = "tree",
+                    height = 120,
+                    expanded = expanded,
+                    value = selected,
+                    items = {
+                        {
+                            key = "root",
+                            label = "Root",
+                            children = {
+                                { key = "leaf", label = "Leaf" },
+                            },
+                        },
+                    },
+                }),
+            },
+        }))
+        click(app, role(app, "columnheader"))
+        local rows
+        for _, node in ipairs(app._visual) do
+            if node.props.role == "rowgroup" then
+                rows = node
+            end
+        end
+        assert(rows.children[1].children[1].key == 2)
+        local tree = app:find("tree")
+        tree:focus()
+        app:dispatch({ type = "keyDown", key = "ArrowDown" })
+        assert(selected:get() == "root")
+        app:dispatch({ type = "keyDown", key = "ArrowRight" })
+        assert(expanded:get().root)
+        app:dispatch({ type = "keyDown", key = "ArrowDown" })
+        assert(selected:get() == "leaf")
+        app:destroy()
+        expanded:dispose()
+        selected:dispose()
     end)
-    t.test("Tabs and Accordion mount conditional content",function()
-        local app=gui.createApp();app:render(gui.Column({children={gui.Tabs({tabs={{key="a",label="A",content=gui.Text({id="a",text="First"})},{key="b",label="B",content=gui.Text({id="b",text="Second"})}}}),gui.Accordion({items={{key="section",label="Section",content=gui.Text({id="details",text="Details"})}}})}}))
-        assert(app:find("a") and not app:find("b"));local tabs={};for _,node in ipairs(app._visual) do if node.props.role=="tab" then table.insert(tabs,node)end end
-        click(app,tabs[2]);assert(app:find("b") and not app:find("a"))
-        local header;for _,node in ipairs(app._visual) do if node.kind=="Button" and node.props.text=="▸ Section" then header=node end end
-        click(app,header);assert(app:find("details"));click(app,header);assert(not app:find("details"));app:destroy()
+    t.test("Tabs and Accordion mount conditional content", function()
+        local app = gui.createApp()
+        app:render(gui.Column({
+            children = {
+                gui.Tabs({
+                    tabs = {
+                        {
+                            key = "a",
+                            label = "A",
+                            content = gui.Text({ id = "a", text = "First" }),
+                        },
+                        {
+                            key = "b",
+                            label = "B",
+                            content = gui.Text({ id = "b", text = "Second" }),
+                        },
+                    },
+                }),
+                gui.Accordion({
+                    items = {
+                        {
+                            key = "section",
+                            label = "Section",
+                            content = gui.Text({ id = "details", text = "Details" }),
+                        },
+                    },
+                }),
+            },
+        }))
+        assert(app:find("a") and not app:find("b"))
+        local tabs = {}
+        for _, node in ipairs(app._visual) do
+            if node.props.role == "tab" then
+                table.insert(tabs, node)
+            end
+        end
+        click(app, tabs[2])
+        assert(app:find("b") and not app:find("a"))
+        local header
+        for _, node in ipairs(app._visual) do
+            if node.kind == "Button" and node.props.text == "▸ Section" then
+                header = node
+            end
+        end
+        click(app, header)
+        assert(app:find("details"))
+        click(app, header)
+        assert(not app:find("details"))
+        app:destroy()
     end)
-    t.test("SplitPane keyboard and pointer drag resize panes",function()
-        local ratio=gui.state(0.5);local app=gui.createApp({width=400,height=200})
-        app:render(gui.SplitPane({width=400,height=200,ratio=ratio,children={gui.Text({text="Left"}),gui.Text({text="Right"})}}))
-        local handle=role(app,"separator");handle:focus();app:dispatch({type="keyDown",key="ArrowRight"});assert(ratio:get()>0.5)
-        local b=handle.box;app:dispatch({type="mouseMove",x=b.x+2,y=50});app:dispatch({type="mouseDown",button="left"});app:dispatch({type="mouseMove",x=300,y=50});app:dispatch({type="mouseUp",button="left"});assert(math.abs(ratio:get()-0.75)<0.01)
-        app:destroy();ratio:dispose()
+    t.test("SplitPane keyboard and pointer drag resize panes", function()
+        local ratio = gui.state(0.5)
+        local app = gui.createApp({ width = 400, height = 200 })
+        app:render(gui.SplitPane({
+            width = 400,
+            height = 200,
+            ratio = ratio,
+            children = { gui.Text({ text = "Left" }), gui.Text({ text = "Right" }) },
+        }))
+        local handle = role(app, "separator")
+        handle:focus()
+        app:dispatch({ type = "keyDown", key = "ArrowRight" })
+        assert(ratio:get() > 0.5)
+        local b = handle.box
+        app:dispatch({ type = "mouseMove", x = b.x + 2, y = 50 })
+        app:dispatch({ type = "mouseDown", button = "left" })
+        app:dispatch({ type = "mouseMove", x = 300, y = 50 })
+        app:dispatch({ type = "mouseUp", button = "left" })
+        assert(math.abs(ratio:get() - 0.75) < 0.01)
+        app:destroy()
+        ratio:dispose()
     end)
-    t.test("frame-independent tweens, reverse, cancellation and timelines",function()
-        local app=gui.createApp();app:render(gui.Container({id="box",width=100,height=100}));local box=app:find("box");local complete=0
-        local tween=gui.tween(box,{opacity=0,x=200},{duration=1,easing="linear",onComplete=function()complete+=1 end})
-        tween:_step(tween.start+0.5);app:flush();assert(math.abs(box.style.opacity-0.5)<0.001 and box.box.x==100)
-        tween:_step(tween.start+1);app:flush();assert(complete==1 and tween.status=="completed")
-        local reverse=gui.tween(box,{x=0},{duration=1,reverse=true});reverse:_step(reverse.start+2);assert(reverse.status=="completed" and box.data.animated.x==200)
-        local cancelled=gui.tween(box,{x=10});cancelled:cancel();assert(cancelled.status=="cancelled")
-        local timeline=gui.timeline():to(box,{x=100},{duration=1,easing="linear"}):to(box,{x=0},{duration=1,easing="linear"}):play()
-        local first,second=timeline.tweens[1],timeline.tweens[2]
-        first:_step(first.start+1);second:_step(second.start+1);assert(second.from.x==100)
-        second:_step(second.start+2);assert(timeline.status=="completed");app:destroy()
+    t.test("frame-independent tweens, reverse, cancellation and timelines", function()
+        local app = gui.createApp()
+        app:render(gui.Container({ id = "box", width = 100, height = 100 }))
+        local box = app:find("box")
+        local complete = 0
+        local tween = gui.tween(box, { opacity = 0, x = 200 }, {
+            duration = 1,
+            easing = "linear",
+            onComplete = function()
+                complete += 1
+            end,
+        })
+        tween:_step(tween.start + 0.5)
+        app:flush()
+        assert(math.abs(box.style.opacity - 0.5) < 0.001 and box.box.x == 100)
+        tween:_step(tween.start + 1)
+        app:flush()
+        assert(complete == 1 and tween.status == "completed")
+        local reverse = gui.tween(box, { x = 0 }, { duration = 1, reverse = true })
+        reverse:_step(reverse.start + 2)
+        assert(reverse.status == "completed" and box.data.animated.x == 200)
+        local cancelled = gui.tween(box, { x = 10 })
+        cancelled:cancel()
+        assert(cancelled.status == "cancelled")
+        local timeline = gui.timeline()
+            :to(box, { x = 100 }, { duration = 1, easing = "linear" })
+            :to(box, { x = 0 }, { duration = 1, easing = "linear" })
+            :play()
+        local first, second = timeline.tweens[1], timeline.tweens[2]
+        first:_step(first.start + 1)
+        second:_step(second.start + 1)
+        assert(second.from.x == 100)
+        second:_step(second.start + 2)
+        assert(timeline.status == "completed")
+        app:destroy()
     end)
-    t.test("theme inheritance, semantics and password privacy",function()
-        local app=gui.createApp({theme={colors={primary="#123456"}}})
-        app:render(gui.Column({theme={colors={text="#FF0000"}},fontSize=20,children={gui.Text({id="text",text="Inherited"}),gui.TextInput({id="secret",value="password",password=true,ariaLabel="Password"})}}))
-        assert(app:find("text").style.fontSize==20 and app:find("text").style.color=="#FF0000")
-        local function find(node)if node.id=="secret" then return node end;for _,child in ipairs(node.children or {}) do local result=find(child);if result then return result end end end
-        local secret=find(app:getSemantics());assert(secret and secret.label=="Password" and secret.value==nil)
-        for _,node in ipairs(app._visual) do Paint.commands(node) end
+    t.test("theme inheritance, semantics and password privacy", function()
+        local app = gui.createApp({ theme = { colors = { primary = "#123456" } } })
+        app:render(gui.Column({
+            theme = { colors = { text = "#FF0000" } },
+            fontSize = 20,
+            children = {
+                gui.Text({ id = "text", text = "Inherited" }),
+                gui.TextInput({
+                    id = "secret",
+                    value = "password",
+                    password = true,
+                    ariaLabel = "Password",
+                }),
+            },
+        }))
+        assert(app:find("text").style.fontSize == 20 and app:find("text").style.color == "#FF0000")
+        local function find(node)
+            if node.id == "secret" then
+                return node
+            end
+            for _, child in ipairs(node.children or {}) do
+                local result = find(child)
+                if result then
+                    return result
+                end
+            end
+        end
+        local secret = find(app:getSemantics())
+        assert(secret and secret.label == "Password" and secret.value == nil)
+        for _, node in ipairs(app._visual) do
+            Paint.commands(node)
+        end
         app:destroy()
     end)
 end

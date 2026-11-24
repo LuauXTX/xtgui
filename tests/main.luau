@@ -1,5 +1,6 @@
 local suite=require("xtest").create()
 require("./reactivity")(suite)
+require("./application")(suite)
 local result=suite.run()
 local failed=0
 for _,test in ipairs(result.tests) do

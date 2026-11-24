@@ -108,6 +108,7 @@ function State.effect(callback)
             local cleanup = State.collect(self, self.callback)
             assert(cleanup == nil or type(cleanup) == "function", "XTGUI effect must return a cleanup function or nil")
             self.cleanup = cleanup
+            for source,version in pairs(self.dependencies) do if (source.version or 0)~=version then self:invalidate();break end end
         end
         function self:invalidate() Scheduler.enqueue(self, function() self:run() end) end
         function self:dispose()
@@ -119,7 +120,7 @@ function State.effect(callback)
     end)
     if State.owner then
         table.insert(State.owner.pendingEffects, { effect = effect, callback = callback })
-    else effect:run() end
+    else effect:invalidate();Scheduler.flush() end
     return function() effect:dispose() end
 end
 function State.ref(initial) return State.hook("ref", function() return { current = initial } end) end

@@ -7,11 +7,13 @@ function Element.new(kind, app)
         paintDirty = true, layoutDirty = true, active = true, alive = true, interaction = {}, box = { x=0,y=0,width=0,height=0 },
         dependencies = {}, renderCount = 0 }, Element)
 end
-function Element:invalidate() if self.alive then self.dirty = true; self.app:_queue(self) end end
+function Element:invalidate()
+    if self.alive then self.dirty=true;local parent=self.parent;while parent do parent.subtreeDirty=true;parent=parent.parent end;self.app:_queue(self) end
+end
 function Element:setProps(properties)
     assert(self.alive, "XTGUI element was destroyed: " .. self.name)
     for key, value in pairs(properties) do self.rawProps[key] = value end
-    self:invalidate(); return self
+    self.descriptor={type=self.kind,props=self.rawProps,key=self.key};self:invalidate(); return self
 end
 function Element:destroy() self.app:_remove(self) end
 function Element:focus() return self.app.focus:set(self) end

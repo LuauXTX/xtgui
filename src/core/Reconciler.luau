@@ -44,7 +44,7 @@ function R.prepare(app, old, value)
         assert(key==nil or type(key)=="string" or type(key)=="number","XTGUI keys must be strings or numbers")
         local node=previous
         if not node or not node.alive or node.kind~=kind or node.key~=key then node=Element.new(kind,app);table.insert(created,node) end
-        if node==previous and node.descriptor==description and not node.dirty then return {node=node,reuse=true} end
+        if node==previous and node.descriptor==description and not node.dirty and not node.subtreeDirty then return {node=node,reuse=true} end
         local plan={node=node,description=description,parent=parent,key=key,children={}}
         local children
         if type(kind)=="table" then
@@ -81,7 +81,11 @@ function R.prepare(app, old, value)
         end
         return plan
     end
-    local ok,plan=pcall(build,old,value,old and old.parent,nil or 1)
+    local ok,plan=pcall(function()
+        local result=build(old,value,old and old.parent,1)
+        if app._preflight then app:_preflight(result) end
+        return result
+    end)
     if not ok then
         for _,item in ipairs(scopes) do for i=item.oldCount+1,#item.scope.hooks do disposeHook(item.scope.hooks[i]) end end
         for _,node in ipairs(created) do node.alive=false end
@@ -97,7 +101,7 @@ function R.commit(app,plan,parent)
     local mounted=node.descriptor==nil
     local oldRef=node.props.ref
     node.descriptor=plan.description;node.key=plan.key;node.rawProps=table.clone(plan.description.props);node.props=plan.props
-    node.dirty=false;node.paintDirty=true;node.layoutDirty=true;node.renderCount+=1
+    node.dirty=false;node.subtreeDirty=false;node.paintDirty=true;node.layoutDirty=true;node.renderCount+=1
     State.commitDependencies(node,plan.dependencies)
     if plan.scope then
         node.hooks=plan.scope.hooks;node.hookCount=plan.scope.hookCount

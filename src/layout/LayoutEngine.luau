@@ -20,7 +20,7 @@ function L.styles(node,parentStyle,theme,disabled)
     local style=Style.resolve(node,parentStyle,node.theme)
     if not equal(node.style,style) then node.paintDirty=true;node.layoutDirty=true;node.measureCache=nil end
     node.style=style
-    for _,child in ipairs(node.children) do L.styles(child,style,node.theme,node.disabled) end
+    for _,child in ipairs(node.children) do L.styles(child,style,node.theme,node.disabled);if child.layoutDirty then node.layoutDirty=true;node.measureCache=nil end end
 end
 local function flow(node)
     local result={}

@@ -273,7 +273,12 @@ function L.arrange(node, x, y, width, height)
         node.app:_markDirty(previous)
         node.app:_markDirty(node.box)
     end
-    if changed and node.props.onLayout and not node.app.preflight then
+    if
+        changed
+        and type(node.kind) == "string"
+        and node.props.onLayout
+        and not node.app.preflight
+    then
         table.insert(node.app._afterLayout, function()
             if node.alive then
                 node.props.onLayout(node:getBounds(), node, previous)

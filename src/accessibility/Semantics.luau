@@ -17,7 +17,9 @@ local roles = {
 local Semantics = {}
 function Semantics.snapshot(app)
     local function visit(node)
-        if node.style.display == "none" or node.props.ariaHidden then
+        if
+            node.style.display == "none" or (type(node.kind) == "string" and node.props.ariaHidden)
+        then
             return {}
         end
         local children = {}
@@ -26,7 +28,7 @@ function Semantics.snapshot(app)
                 table.insert(children, value)
             end
         end
-        local role = node.props.role or roles[node.kind]
+        local role = type(node.kind) == "string" and (node.props.role or roles[node.kind]) or nil
         if not role then
             return children
         end

@@ -64,7 +64,7 @@ function R.destroy(node)
     cleanup(function()
         node.app:_unmounted(node)
     end)
-    if node.props.onUnmount then
+    if type(node.kind) == "string" and node.props.onUnmount then
         cleanup(function()
             node.props.onUnmount(node)
         end)
@@ -286,7 +286,7 @@ function R.commit(app, plan, parent)
     elseif type(ref) == "function" then
         ref(node)
     end
-    if mounted and node.props.onMount then
+    if mounted and type(node.kind) == "string" and node.props.onMount then
         table.insert(app._afterLayout, function()
             if node.alive then
                 node.props.onMount(node)

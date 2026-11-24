@@ -397,6 +397,32 @@ return function(t)
         app:destroy()
         disabled:dispose()
     end)
+    t.test("forwarded lifecycle and semantics remain transparent through components", function()
+        local mounts, layouts, unmounts = 0, 0, 0
+        local Forward = gui.component(function(p)
+            return gui.Button(p)
+        end)
+        local app = gui.createApp()
+        app:render(Forward({
+            id = "forward",
+            text = "Forward",
+            role = "button",
+            width = 100,
+            height = 40,
+            onMount = function()
+                mounts += 1
+            end,
+            onLayout = function()
+                layouts += 1
+            end,
+            onUnmount = function()
+                unmounts += 1
+            end,
+        }))
+        assert(mounts == 1 and layouts == 1 and #app:getSemantics().children == 1)
+        app:destroy()
+        assert(unmounts == 1)
+    end)
     t.test("cleanup failures still dispose sibling state and native resources", function()
         local disposed
         local Child = gui.component(function()

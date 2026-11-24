@@ -14,8 +14,8 @@ function W.validate(kind,p)
         assert(p.value==nil or type(p.value)=="string","XTGUI text input value must be a string")
         if p.maxLength then C.number(p.maxLength,"maxLength",0,65536);assert(p.maxLength%1==0,"XTGUI maxLength must be an integer") end
     end
-    if p.text~=nil then assert(utf8.len(tostring(p.text)),"XTGUI text must contain valid UTF-8") end
-    if p.value and type(p.value)=="string" then assert(utf8.len(p.value),"XTGUI value must contain valid UTF-8") end
+    if p.text~=nil then assert(#tostring(p.text)<=65536 and utf8.len(tostring(p.text)),"XTGUI text must contain valid UTF-8 and fit in 64 KiB") end
+    if p.value and type(p.value)=="string" then assert(#p.value<=65536 and utf8.len(p.value),"XTGUI value must contain valid UTF-8 and fit in 64 KiB") end
     if kind=="Canvas" then assert(type(p.onPaint)=="function","XTGUI Canvas needs onPaint(frame,bounds,element)") end
     for name,callback in pairs(p) do if type(name)=="string" and name:match("^on%u") and callback~=nil then assert(type(callback)=="function","XTGUI "..kind.." "..name.." must be a function") end end
 end

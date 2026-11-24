@@ -13,6 +13,7 @@ local W=require("../components/Widgets")
 local Component=require("./Component")
 local R=require("./Reconciler")
 local Scheduler=require("./Scheduler")
+local State=require("./State")
 local Application={};Application.__index=Application
 function Application.new(options,api)
     options=options or {};C.number(options.width or 800,"window width",1,16384);C.number(options.height or 600,"window height",1,16384)
@@ -21,6 +22,7 @@ function Application.new(options,api)
         _pending={},_afterCommit={},_afterLayout={},_visual={},_portals={},_timers={},_tweens={},_needsLayout=true,_needsStyles=true,
         diagnostics={frames=0,layouts=0,updates=0,dirtyRegions={}},_caretVisible=true},Application)
     self.focus=Focus.new(self);self.input=Input.new(self)
+    self._viewport=State.new({width=self.width,height=self.height})
     self._rootComponent=Component.new(function() return self._render(api) end,"Application")
     Backend.acquire();return self
 end
@@ -88,6 +90,7 @@ function Application:flush()
             if self.root and (self._needsLayout or self._needsStyles) then
                 Layout.run(self);Visual.update(self);self._needsLayout=false;self._needsStyles=false
                 local after=self._afterLayout;self._afterLayout={};for _,callback in ipairs(after) do callback() end
+                Scheduler.flush()
                 if self.focus.current and not self.focus:eligible(self.focus.current) then self.focus:set(nil) end
                 local trap=self.focus:trap()
                 if trap~=self._focusTrap then
@@ -134,6 +137,7 @@ function Application:setTheme(theme)self:_live();self.theme=Theme.resolve(theme)
 function Application:resize(width,height)
     self:_live();C.number(width,"width",1,16384);C.number(height,"height",1,16384)
     self.width=width;self.height=height;if self.root then self:_layout(self.root) end
+    local viewport=self._viewport:get();if viewport.width~=width or viewport.height~=height then self._viewport:set({width=width,height=height}) end
     if self.window then self.window:setSize(width,height) end;return self
 end
 function Application:after(seconds,callback)
@@ -180,6 +184,7 @@ function Application:_guard(callback)
             local handled,reason=pcall(self.options.onError,self.lastError,self)
             if not handled then self.lastError..="\nonError: "..tostring(reason);self:close() end
         else self:close() end
+        if self._inFrame then self:close() end
     end
     return ok
 end
@@ -193,6 +198,7 @@ function Application:_start()
             for _,event in ipairs(self.window:pollEvents()) do
                 if event.type=="resize" or event.type=="scale" then
                     self.width=event.width;self.height=event.height;if self.root then self:_layout(self.root) end
+                    local viewport=self._viewport:get();if viewport.width~=self.width or viewport.height~=self.height then self._viewport:set({width=self.width,height=self.height}) end
                     if o.onResize then o.onResize(event,self) end
                 elseif event.type=="close" then if not o.onClose or o.onClose(self)~=false then self:close() end
                 else self:flush();self.input:dispatch(event) end
@@ -208,7 +214,8 @@ function Application:_start()
             if self._tickAnimations then self:_tickAnimations(os.clock()) end
             self:flush();self:_ime()
             if not self._autoFocused then self._autoFocused=true;for _,node in ipairs(self._visual) do if node.props.autoFocus then self.focus:set(node,true);break end end end
-            local frame=self.window:beginFrame();Renderer.draw(self,frame);self.window:endFrame();self._dirty=false
+            self._inFrame=true
+            local frame=self.window:beginFrame();Renderer.draw(self,frame);self.window:endFrame();self._inFrame=false;self._dirty=false
             if o.onFrame then o.onFrame(dt,self) end
         end)
     end)
@@ -222,13 +229,17 @@ end
 function Application:destroy()
     if self.destroyed then return end;self:close();self._destroying=true
     if self.root then R.destroy(self.root);self.root=nil end
-    self.destroyed=true;self._visual={};self._pending={};Backend.release();Text.clear()
+    self.destroyed=true;self._viewport:dispose();self._visual={};self._pending={};Backend.release();Text.clear()
+    if self._cleanupErrors and #self._cleanupErrors>0 then error("XTGUI cleanup failures:\n"..table.concat(self._cleanupErrors,"\n"),0) end
 end
 function Application.runAll(apps)
     assert(type(apps)=="table" and #apps>0,"XTGUI run requires applications")
     local ok,err=pcall(function()Backend.native().run(function()for _,app in ipairs(apps) do app:_start() end end)end)
     local failure
-    for _,app in ipairs(apps) do failure=failure or (not app.options.onError and app.lastError);app:destroy() end
+    for _,app in ipairs(apps) do
+        failure=failure or (not app.options.onError and app.lastError)
+        local cleaned,reason=pcall(function()app:destroy()end);if not cleaned then failure=failure or tostring(reason) end
+    end
     if not ok then error("XTGUI native graphics: "..tostring(err),0) end
     if failure then error(failure,0) end
 end

@@ -97,7 +97,8 @@ function Input:dispatch(source)
         if self.captureMode=="locked" and not self.synthetic then return end
         event.deltaX=event.x-self.x;event.deltaY=event.y-self.y;self.x=event.x;self.y=event.y
     elseif kind=="rawMouseMotion" and self.captured and self.captureMode=="locked" then
-        event.x=math.clamp(self.x+(event.dx or 0),0,app.width);event.y=math.clamp(self.y+(event.dy or 0),0,app.height);event.deltaX=event.x-self.x;event.deltaY=event.y-self.y;self.x=event.x;self.y=event.y;kind="mouseMove";event.type=kind
+        local sensitivity=app.options.captureSensitivity or 1
+        event.x=math.clamp(self.x+(event.deltaX or 0)*sensitivity,0,app.width);event.y=math.clamp(self.y+(event.deltaY or 0)*sensitivity,0,app.height);event.deltaX=event.x-self.x;event.deltaY=event.y-self.y;self.x=event.x;self.y=event.y;kind="mouseMove";event.type=kind
     elseif event.x and event.y and (kind=="mouseDown" or kind=="mouseUp") then self.x=event.x;self.y=event.y end
     if kind=="mouseMove" or kind=="mouseDown" or kind=="mouseUp" or kind=="scroll" then event.x=self.x;event.y=self.y end
     local hit=Visual.hit(app,self.x,self.y)

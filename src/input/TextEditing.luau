@@ -26,6 +26,7 @@ function Editor:replace(text,options)
     local lo,hi=self:range();local insert=U.split(text)
     if options.maxLength then local max=math.max(0,options.maxLength-(#self.parts-(hi-lo)));while #insert>max do table.remove(insert) end end
     local nextText=U.slice(self.parts,0,lo)..table.concat(insert)..U.slice(self.parts,hi)
+    assert(#nextText<=65536,"XTGUI editable text exceeds native 64 KiB limit")
     if nextText==self.text then self.composition="";return false end
     table.insert(self.undoStack,self:snapshot());if #self.undoStack>100 then table.remove(self.undoStack,1) end
     self.redoStack={};self.text=nextText;self.parts=U.split(nextText);self.caret=lo+#insert;self.anchor=self.caret;self.composition="";self.goalX=nil

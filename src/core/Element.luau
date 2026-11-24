@@ -12,7 +12,7 @@ function Element:invalidate()
 end
 function Element:setProps(properties)
     assert(self.alive, "XTGUI element was destroyed: " .. self.name)
-    for key, value in pairs(properties) do self.rawProps[key] = value end
+    for key, value in pairs(properties) do self.rawProps[key] = value;if self.data.animated then self.data.animated[key]=nil end end
     self.descriptor={type=self.kind,props=self.rawProps,key=self.key};self:invalidate(); return self
 end
 function Element:destroy() self.app:_remove(self) end
@@ -23,8 +23,12 @@ function Element:releasePointer() return self.app.input:release(self) end
 function Element:getBounds() return table.clone(self.box) end
 function Element:getChildren() return table.clone(self.children) end
 function Element:find(key)
-    if self.props.id == key or self.key == key then return self end
+    if type(self.kind)=="string" and self.props.id == key then return self end
     for _, child in ipairs(self.children) do local found = child:find(key); if found then return found end end
+end
+function Element:findKey(key)
+    if self.key==key then return self end
+    for _,child in ipairs(self.children) do local found=child:findKey(key);if found then return found end end
 end
 function Element:contains(other)
     while other do if other == self then return true end; other = other.parent end

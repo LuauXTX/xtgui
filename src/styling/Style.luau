@@ -34,17 +34,33 @@ function S.validate(props,name)
     for _,key in ipairs({"gap","rowGap","columnGap","borderWidth","radius","flexGrow","flexShrink"}) do if style[key]~=nil then C.number(style[key],key,0) end end
     if style.opacity~=nil then C.number(style.opacity,"opacity",0,1) end
     if style.fontSize~=nil then C.number(style.fontSize,"fontSize",1,512) end
+    if style.lineHeight~=nil then C.number(style.lineHeight,"lineHeight",0.001) end
+    if style.zIndex~=nil then C.number(style.zIndex,"zIndex") end
+    if style.transform~=nil then
+        assert(type(style.transform)=="table","XTGUI transform must be a table")
+        for k,v in pairs(style.transform) do assert(k=="x" or k=="y" or k=="rotation" or k=="scaleX" or k=="scaleY","XTGUI unknown transform field: "..tostring(k));C.number(v,"transform."..k) end
+    end
+    if style.shadow~=nil then
+        assert(type(style.shadow)=="table","XTGUI shadow must be a table")
+        for _,k in ipairs({"x","y","blur"}) do if style.shadow[k]~=nil then C.number(style.shadow[k],"shadow."..k,k=="blur" and 0 or nil) end end
+        if style.shadow.color then S.color(style.shadow.color) end
+    end
     if style.padding~=nil then C.box(style.padding) end;if style.margin~=nil then C.box(style.margin) end
     for _,key in ipairs({"background","color","borderColor"}) do if style[key]~=nil and not(type(style[key])=="string" and style[key]:sub(1,1)=="$") then S.color(style[key]) end end
     if props.disabled~=nil then assert(type(props.disabled)=="boolean",name.." disabled must be boolean") end
     if props.text~=nil then assert(type(props.text)=="string" or type(props.text)=="number",name.." text must be string/number") end
     if style.position then assert(style.position=="absolute" or style.position=="relative","XTGUI invalid position") end
     if style.display then assert(style.display=="none" or style.display=="flex","XTGUI display must be flex or none") end
+    local align={start=true,center=true,["end"]=true,stretch=true}
+    if style.alignItems then assert(align[style.alignItems],"XTGUI invalid alignItems")end
+    if style.alignSelf then assert(align[style.alignSelf],"XTGUI invalid alignSelf")end
+    if style.justifyContent then assert(align[style.justifyContent] or style.justifyContent=="space-between" or style.justifyContent=="space-around" or style.justifyContent=="space-evenly","XTGUI invalid justifyContent")end
 end
-function S.resolve(node,parent,theme)
-    local p=node.props;local colors=theme.colors
+function S.resolve(node,parent,theme,ignoreAnimation)
+    local p=type(node.kind)=="table" and {} or node.props;local colors=theme.colors
     local out={fontSize=parent and parent.fontSize or theme.fontSize,fontFamily=parent and parent.fontFamily or theme.fontFamily,fontWeight=parent and parent.fontWeight or 400,color=parent and parent.color or colors.text,
         alignItems="stretch",justifyContent="start",opacity=1,borderWidth=0,radius=0,gap=0,padding=0,margin=0,flexGrow=0,flexShrink=1}
+    if node.props.theme then out.color=colors.text end
     local kind=node.kind
     if kind=="Button" or kind=="IconButton" then overlay(out,{background=colors.surface,borderColor=colors.border,borderWidth=1,radius=theme.radius,padding={8,14},cursor="pointer",height=36}) end
     if kind=="IconButton" then out.width=36;out.padding=6 end
@@ -67,6 +83,7 @@ function S.resolve(node,parent,theme)
         end
     end
     for _,k in ipairs({"background","color","borderColor"}) do if type(out[k])=="string" and out[k]:sub(1,1)=="$" then local token=out[k]:sub(2);assert(colors[token],"XTGUI unknown color token: "..token);out[k]=colors[token] end end
+    if not ignoreAnimation and node.data and node.data.animated then overlay(out,node.data.animated) end
     out.padding=C.box(out.padding);out.margin=C.box(out.margin)
     return out
 end

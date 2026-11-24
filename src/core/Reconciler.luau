@@ -16,14 +16,18 @@ end
 function R.destroy(node)
     if not node or not node.alive then return end
     node.alive=false; State.detach(node)
+    local function cleanup(callback)
+        local ok,err=pcall(callback)
+        if not ok then node.app._cleanupErrors=node.app._cleanupErrors or {};table.insert(node.app._cleanupErrors,node.name..": "..tostring(err)) end
+    end
     for _, child in ipairs(node.children) do R.destroy(child) end
     -- Detach effects before disposing their state dependencies.
-    for _, hook in ipairs(node.hooks) do if hook.kind=="effect" then disposeHook(hook) end end
-    for _, hook in ipairs(node.hooks) do if hook.kind~="effect" then disposeHook(hook) end end
+    for _, hook in ipairs(node.hooks) do if hook.kind=="effect" then cleanup(function()disposeHook(hook)end) end end
+    for _, hook in ipairs(node.hooks) do if hook.kind~="effect" then cleanup(function()disposeHook(hook)end) end end
     local ref=node.props.ref
-    if type(ref)=="table" and ref.current==node then ref.current=nil elseif type(ref)=="function" then ref(nil) end
-    node.app:_unmounted(node)
-    if node.props.onUnmount then node.props.onUnmount(node) end
+    if type(ref)=="table" and ref.current==node then ref.current=nil elseif type(ref)=="function" then cleanup(function()ref(nil)end) end
+    cleanup(function()node.app:_unmounted(node)end)
+    if node.props.onUnmount then cleanup(function()node.props.onUnmount(node)end) end
 end
 local function propsRead(source)
     local result={}
@@ -48,7 +52,7 @@ function R.prepare(app, old, value)
         local plan={node=node,description=description,parent=parent,key=key,children={}}
         local children
         if type(kind)=="table" then
-            local scope={name=kind.name,hooks=table.clone(node.hooks),hookIndex=0,hookCount=node.hookCount,pendingEffects={}}
+            local scope={name=kind.name,app=app,node=node,hooks=table.clone(node.hooks),hookIndex=0,hookCount=node.hookCount,pendingEffects={},computedChanges={}}
             table.insert(scopes,{scope=scope,oldCount=#node.hooks})
             local owner,rendering=State.owner,State.rendering
             State.owner=scope;State.rendering=true
@@ -87,7 +91,12 @@ function R.prepare(app, old, value)
         return result
     end)
     if not ok then
-        for _,item in ipairs(scopes) do for i=item.oldCount+1,#item.scope.hooks do disposeHook(item.scope.hooks[i]) end end
+        for _,item in ipairs(scopes) do
+            for _,change in ipairs(item.scope.computedChanges) do
+                change.value.callback=change.callback;change.value.dirty=change.dirty;change.value.value=change.cached;State.commitDependencies(change.value,change.dependencies)
+            end
+            for i=item.oldCount+1,#item.scope.hooks do disposeHook(item.scope.hooks[i]) end
+        end
         for _,node in ipairs(created) do node.alive=false end
         error(plan,0)
     end
@@ -107,7 +116,7 @@ function R.commit(app,plan,parent)
         node.hooks=plan.scope.hooks;node.hookCount=plan.scope.hookCount
         for _,pending in ipairs(plan.scope.pendingEffects) do
             pending.effect.callback=pending.callback;pending.effect.started=true
-            table.insert(app._afterCommit,function() pending.effect:invalidate() end)
+            table.insert(app._afterLayout,function() pending.effect:invalidate() end)
         end
     end
     local used={};local children={}
@@ -119,7 +128,7 @@ function R.commit(app,plan,parent)
     end
     local ref=node.props.ref
     if type(ref)=="table" then ref.current=node elseif type(ref)=="function" then ref(node) end
-    if mounted and node.props.onMount then table.insert(app._afterCommit,function() if node.alive then node.props.onMount(node) end end) end
+    if mounted and node.props.onMount then table.insert(app._afterLayout,function() if node.alive then node.props.onMount(node) end end) end
     return node
 end
 return R

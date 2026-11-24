@@ -14,13 +14,17 @@ local function equal(a,b,depth)
     return true
 end
 L.equal=equal
+local delegate={"width","height","minWidth","maxWidth","minHeight","maxHeight","margin","flexGrow","flexShrink","flexBasis","alignSelf","position","left","right","top","bottom","x","y","display"}
 function L.styles(node,parentStyle,theme,disabled)
     node.theme=node.props.theme and Theme.resolve(node.props.theme,theme) or theme
     node.disabled=disabled or node.props.disabled==true
+    if type(node.kind)=="string" and node.app._transition then node.app:_transition(node,node.style,Style.resolve(node,parentStyle,node.theme,true),equal) end
     local style=Style.resolve(node,parentStyle,node.theme)
-    if not equal(node.style,style) then node.paintDirty=true;node.layoutDirty=true;node.measureCache=nil end
+    local previous=node.style
     node.style=style
     for _,child in ipairs(node.children) do L.styles(child,style,node.theme,node.disabled);if child.layoutDirty then node.layoutDirty=true;node.measureCache=nil end end
+    if type(node.kind)=="table" and node.children[1] then for _,key in ipairs(delegate) do style[key]=node.children[1].style[key] end end
+    if not equal(previous,style) then node.paintDirty=true;node.layoutDirty=true;node.measureCache=nil end
 end
 local function flow(node)
     local result={}
@@ -96,7 +100,13 @@ function L.arrange(node,x,y,width,height)
     local previous=table.clone(b);node.box={x=x,y=y,width=math.max(0,width),height=math.max(0,height)};node.paintDirty=true
     if changed and node.props.onLayout then table.insert(node.app._afterLayout,function() if node.alive then node.props.onLayout(node:getBounds(),node,previous) end end) end
     if type(node.kind)=="table" then
-        if node.children[1] then L.arrange(node.children[1],x,y,width,height) end
+        if node.children[1] then
+            local child=node.children[1];local cs=child.style
+            local cw=width;local ch=height
+            if not node.parent then cw=C.dimension(cs.width,width) or width;ch=C.dimension(cs.height,height) or height end
+            cw,ch=size(child,cw,ch)
+            L.arrange(child,x+(not node.parent and (cs.x or 0) or 0),y+(not node.parent and (cs.y or 0) or 0),cw,ch)
+        end
         node.layoutDirty=false;return
     end
     local p=s.padding;local ix=x+p.left;local iy=y+p.top;local iw=math.max(0,width-p.left-p.right);local ih=math.max(0,height-p.top-p.bottom)

@@ -66,10 +66,16 @@ end
 function State.is(value) return type(value) == "table" and value._xtguiState == true end
 function State.read(value) if State.is(value) then return value:get() end; return value end
 function State.computed(callback)
-    return State.hook("computed", function()
+    local value=State.hook("computed", function()
         local self = setmetatable({ _xtguiState = true, callback = callback, listeners = {}, dirty = true, active = true }, Computed)
         return self
     end)
+    if State.owner and value.callback~=callback then
+        local changes=State.owner.computedChanges
+        table.insert(changes,{value=value,callback=value.callback,dirty=value.dirty,cached=value.value,dependencies=value.dependencies or {}})
+        value.callback=callback;value.dirty=true
+    end
+    return value
 end
 function Computed:invalidate()
     if self.disposed or self.dirty then return end

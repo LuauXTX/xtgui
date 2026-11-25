@@ -2253,7 +2253,7 @@ export type AppHandle = {
 }
 
 export type App = {
-    render: (self: App, content: Descriptor | ((Gui) -> Node)) -> App,
+    render: (self: App, content: Descriptor | ((any) -> Node)) -> App,
     run: (self: App) -> (),
     flush: (self: App) -> (),
     find: (self: App, id: string) -> Element?,

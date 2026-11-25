@@ -7,6 +7,13 @@ callbacks and state values retain their types through ordinary package imports;
 the language server does not need package-specific completion rules.
 Custom data-view item records and user-defined theme tokens remain dynamic;
 annotate item callbacks for application-specific record fields.
+Constructor declarations use dot calls (`gui.Button({...})`) for contextual
+callback inference; runtime colon calls remain supported. The render callback's
+optional GUI namespace argument is dynamic to avoid a recursive Luau complexity
+limit. Capture the typed `gui` import, as in the examples, or annotate that
+argument as `gui.Gui`. `gui.Node` is available for explicit render return types.
+Edit `types/public.luau.in` and run `python scripts/generate-types.py` to update
+the flattened declarations in `src/Types.luau`.
 
 ## Applications
 

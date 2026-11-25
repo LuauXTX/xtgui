@@ -15,6 +15,7 @@ local R = require("./Reconciler")
 local Scheduler = require("./Scheduler")
 local State = require("./State")
 local Validation = require("./Validation")
+local Diagnostics = require("./Diagnostics")
 local Application = {}
 Application.__index = Application
 function Application.new(options, api)
@@ -35,6 +36,7 @@ function Application.new(options, api)
         height = options.height or 600,
         theme = Theme.resolve(options.theme),
         _pending = {},
+        _effects = {},
         _afterCommit = {},
         _afterLayout = {},
         _visual = {},
@@ -81,14 +83,25 @@ function Application:_redraw(node)
     end
 end
 function Application:_queue(node)
+    Diagnostics.record(self, "component invalidated", node)
     self._pending[node] = true
     self:_redraw(node)
 end
+function Application:_queueEffect(effect)
+    if self.destroyed or not effect.active then
+        return
+    end
+    Diagnostics.record(self, "effect invalidated", effect)
+    self._effects[effect] = true
+    self:_redraw()
+end
 function Application:_styles()
+    Diagnostics.record(self, "styles invalidated")
     self._needsStyles = true
     self:_redraw()
 end
 function Application:_layout(node)
+    Diagnostics.record(self, "layout invalidated", node)
     while node do
         node.layoutDirty = true
         node.measureCache = nil
@@ -136,8 +149,11 @@ function Application:flush()
         return
     end
     self._flushing = true
+    local trace = Diagnostics.begin(self)
     local ok, err = pcall(function()
         for pass = 1, 100 do
+            trace.pass = pass
+            trace.phase = "scheduler"
             Scheduler.flush()
             local pending = self._pending
             self._pending = {}
@@ -152,6 +168,7 @@ function Application:flush()
                     ancestor = ancestor.parent
                 end
                 if node.alive and not covered then
+                    trace.phase = "reconcile " .. Diagnostics.node(node)
                     node.dirty = true
                     local prepared, plan =
                         pcall(R.prepare, self, node, node._nextDescriptor or node.descriptor)
@@ -168,12 +185,14 @@ function Application:flush()
                 end
             end
             local callbacks = self._afterCommit
+            trace.phase = "commit callbacks"
             self._afterCommit = {}
             for _, callback in ipairs(callbacks) do
                 callback()
             end
             Scheduler.flush()
             if self._needsLayout or self._needsStyles then
+                trace.phase = "layout"
                 -- Consume this pass's work even for an empty application. New
                 -- invalidations during layout/callbacks belong to the next pass.
                 self._needsLayout = false
@@ -191,18 +210,36 @@ function Application:flush()
                 end
                 self.focus:syncTraps()
             end
+            -- Component effects see committed layout, and a dependency change
+            -- plus a props change schedules only one run in this pass.
+            trace.phase = "effects"
+            local effects = self._effects
+            self._effects = {}
+            for effect in pairs(effects) do
+                Scheduler.enqueue(effect, function()
+                    effect:run()
+                end)
+            end
+            Scheduler.flush()
             if
                 not next(self._pending)
+                and not next(self._effects)
                 and #self._afterCommit == 0
+                and #self._afterLayout == 0
                 and not self._needsLayout
                 and not self._needsStyles
             then
                 break
             end
-            assert(pass < 100, "XTGUI layout/effect update loop exceeded 100 passes")
+            if pass == 100 then
+                error(Diagnostics.report(self), 0)
+            end
         end
     end)
     self._flushing = false
+    self.diagnostics.flushPasses = trace.pass
+    self.diagnostics.invalidationCount = trace.total
+    self._flushTrace = nil
     if not ok then
         error(err, 0)
     end
@@ -241,9 +278,7 @@ function Application:_remove(node)
         self.root = nil
     end
     R.destroy(node)
-    if parent then
-        self:_layout(parent)
-    end
+    self:_layout(parent)
     self:_redraw()
 end
 function Application:find(key)
@@ -312,6 +347,9 @@ function Application:resize(width, height)
     self:_live()
     C.number(width, "width", 1, 16384)
     C.number(height, "height", 1, 16384)
+    if self.width == width and self.height == height then
+        return self
+    end
     self.width = width
     self.height = height
     if self.root then
@@ -540,6 +578,9 @@ function Application:destroy()
     self._viewport:dispose()
     self._visual = {}
     self._pending = {}
+    self._effects = {}
+    self._afterCommit = {}
+    self._afterLayout = {}
     Backend.release()
     Text.clear()
     if self._cleanupErrors and #self._cleanupErrors > 0 then

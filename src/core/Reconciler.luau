@@ -2,6 +2,19 @@ local State = require("./State")
 local Element = require("./Element")
 local Style = require("../styling/Style")
 local R = {}
+local function sameProps(a, b)
+    for key, value in pairs(a) do
+        if not rawequal(value, b[key]) then
+            return false
+        end
+    end
+    for key in pairs(b) do
+        if a[key] == nil then
+            return false
+        end
+    end
+    return true
+end
 
 local function descriptor(value)
     if value == nil or value == false then
@@ -224,6 +237,7 @@ function R.commit(app, plan, parent)
         return node
     end
     local mounted = node.descriptor == nil
+    local propsChanged = not sameProps(node.rawProps, plan.description.props)
     local oldRef = type(node.kind) == "string" and node.props.ref or nil
     node.descriptor = plan.description
     node.key = plan.key
@@ -254,10 +268,12 @@ function R.commit(app, plan, parent)
         end
         for _, pending in ipairs(plan.scope.pendingEffects) do
             pending.effect.callback = pending.callback
-            pending.effect.started = true
-            table.insert(app._afterLayout, function()
-                pending.effect:invalidate()
-            end)
+            if not pending.effect.started or propsChanged then
+                pending.effect.started = true
+                table.insert(app._afterLayout, function()
+                    pending.effect:invalidate()
+                end)
+            end
         end
     end
     local used = {}
@@ -283,7 +299,7 @@ function R.commit(app, plan, parent)
     local ref = type(node.kind) == "string" and node.props.ref or nil
     if type(ref) == "table" then
         ref.current = node
-    elseif type(ref) == "function" then
+    elseif type(ref) == "function" and (mounted or oldRef ~= ref) then
         ref(node)
     end
     if mounted and type(node.kind) == "string" and node.props.onMount then

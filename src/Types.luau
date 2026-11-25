@@ -2215,6 +2215,24 @@ export type Element = {
     scrollTo: (self: Element, x: number, y: number) -> boolean,
 }
 
+export type UpdateLoopReport = {
+    pass: number,
+    phase: string,
+    sources: { { reason: string, count: number } },
+    recent: { string },
+}
+
+export type Diagnostics = {
+    frames: number,
+    layouts: number,
+    updates: number,
+    flushPasses: number?,
+    invalidationCount: number?,
+    recentInvalidations: { string }?,
+    lastUpdateLoop: UpdateLoopReport?,
+    [string]: any,
+}
+
 export type AppOptions = {
     title: string?,
     width: number?,
@@ -2236,6 +2254,7 @@ export type AppOptions = {
 -- embedding every component constructor in every component's props contract.
 
 export type AppHandle = {
+    diagnostics: Diagnostics,
     render: (self: AppHandle, content: Descriptor | ((any) -> Node)) -> AppHandle,
     run: (self: AppHandle) -> (),
     flush: (self: AppHandle) -> (),
@@ -2253,6 +2272,7 @@ export type AppHandle = {
 }
 
 export type App = {
+    diagnostics: Diagnostics,
     render: (self: App, content: Descriptor | ((any) -> Node)) -> App,
     run: (self: App) -> (),
     flush: (self: App) -> (),

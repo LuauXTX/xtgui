@@ -85,6 +85,11 @@ component-lifetime teardown. `gui.useApp()` and `gui.useViewport()` work during 
 component render. Viewport reads subscribe that component to confirmed logical
 size changes.
 
+Effects track state reads inside their callbacks. Owned effects run after layout
+on mount, dependency invalidation or changed component props; an owner rerender
+with the same props alone does not restart them. See [update-loop lifecycle and
+diagnostics](update-loops.md) for ordering, cleanup, no-op updates and cycle reports.
+
 An element has stable `id` (framework serial), `props.id` (developer name),
 `key`, `parent`, `children`, `alive`, `box`, `renderCount` and `app`.
 Prefer methods over mutating internal fields:

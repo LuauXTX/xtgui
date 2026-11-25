@@ -163,6 +163,13 @@ Add `--smoke` for automatic exercise/close with error assertions.
 
 ## Testing and limits
 
+Applications can run with an empty tree before `app:render(...)`. Layout flags
+settle normally in that state. Effects run after committed layout and track
+reads inside their callbacks; owner rerenders alone do not restart them. Actual
+feedback cycles still fail at the existing update limits, with component/hook/
+layout-node details in the error and `app.diagnostics.lastUpdateLoop`. See the
+[update-loop fix and diagnostics guide](docs/update-loops.md).
+
 ```sh
 python tests/run.py --runtime /path/to/native/luauxtx --xtpkg ../xtpkg --gui --package
 ```

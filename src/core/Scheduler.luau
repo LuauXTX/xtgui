@@ -1,10 +1,11 @@
 local Scheduler = { queue = {}, keyed = {}, depth = 0, flushing = false, limit = 1000 }
+local Diagnostics = require("./Diagnostics")
 function Scheduler.enqueue(key, callback)
     if Scheduler.keyed[key] then
         return
     end
     Scheduler.keyed[key] = true
-    table.insert(Scheduler.queue, { key, callback })
+    table.insert(Scheduler.queue, { key, callback, Diagnostics.current })
 end
 function Scheduler.flush()
     if Scheduler.flushing or Scheduler.depth > 0 then
@@ -19,8 +20,13 @@ function Scheduler.flush()
             for _, item in ipairs(work) do
                 Scheduler.keyed[item[1]] = nil
                 count += 1
-                assert(count <= Scheduler.limit, "XTGUI reactive update loop exceeded 1000 jobs")
-                item[2]()
+                assert(
+                    count <= Scheduler.limit,
+                    "XTGUI reactive update loop exceeded 1000 jobs: "
+                        .. Diagnostics.label(item[1])
+                        .. (item[3] and (" <- " .. item[3]) or "")
+                )
+                Diagnostics.call(Diagnostics.label(item[1]), item[2], item[3])
             end
         end
     end)

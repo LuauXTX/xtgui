@@ -1,4 +1,5 @@
 local Scheduler = require("./Scheduler")
+local Diagnostics = require("./Diagnostics")
 local State = { owner = nil, tracking = nil, rendering = false }
 local Value = {}
 Value.__index = Value
@@ -19,7 +20,9 @@ local function notify(self, exclude)
     end
     for _, listener in ipairs(listeners) do
         if listener ~= exclude and listener.active ~= false then
-            listener:invalidate()
+            Diagnostics.call(Diagnostics.label(self) .. " changed", function()
+                listener:invalidate()
+            end, Diagnostics.current)
         end
     end
 end
@@ -65,7 +68,11 @@ end
 function State.hook(kind, factory)
     local owner = State.owner
     if not owner then
-        return factory()
+        local value = factory()
+        if kind == "state" or kind == "computed" or kind == "effect" then
+            Diagnostics.tag(value, kind)
+        end
+        return value
     end
     owner.hookIndex += 1
     local index = owner.hookIndex
@@ -76,6 +83,9 @@ function State.hook(kind, factory)
     end
     assert(not owner.hookCount, "XTGUI hook count changed in " .. owner.name)
     local value = factory()
+    if kind == "state" or kind == "computed" or kind == "effect" then
+        Diagnostics.tag(value, kind, owner.node, index)
+    end
     owner.hooks[index] = { kind = kind, value = value }
     return value
 end
@@ -222,6 +232,11 @@ function State.effect(callback)
             end
         end
         function self:invalidate()
+            local app = self._ownerApp and self._ownerApp[1]
+            if app and app._queueEffect then
+                app:_queueEffect(self)
+                return
+            end
             Scheduler.enqueue(self, function()
                 self:run()
             end)
@@ -231,6 +246,10 @@ function State.effect(callback)
                 return
             end
             State.detach(self)
+            local app = self._ownerApp and self._ownerApp[1]
+            if app and app._effects then
+                app._effects[self] = nil
+            end
             if self.cleanup then
                 local cleanup = self.cleanup
                 self.cleanup = nil

@@ -91,6 +91,8 @@ def main():
             fixture = base / "native image fixture.png"
             png_fixture(fixture)
             execute([runtime, ROOT / "tests/native.luau"], env=env)
+            for mode in ("empty", "reactive"):
+                execute([runtime, ROOT / "tests/native-update-loops.luau", mode], env=env)
             execute([runtime, ROOT / "tests/native-widgets.luau", fixture], env=env)
             for name in ("hello", "calculator", "settings", "editor", "gallery"):
                 execute([runtime, ROOT / f"examples/{name}.luau", "--smoke"], env=env)

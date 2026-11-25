@@ -352,6 +352,11 @@ export type Element = {
     releasePointer: (self: Element) -> boolean,
     scrollTo: (self: Element, x: number, y: number) -> boolean,
 }
+export type UpdateLoopReport = { pass: number, phase: string, sources: {{reason:string,count:number}}, recent: {string} }
+export type Diagnostics = {
+    frames:number,layouts:number,updates:number,flushPasses:number?,invalidationCount:number?,
+    recentInvalidations:{string}?,lastUpdateLoop:UpdateLoopReport?,[string]:any,
+}
 export type AppOptions = {
     title: string?,
     width: number?,
@@ -372,6 +377,7 @@ export type AppOptions = {
 -- Element/event owners expose the application methods without recursively
 -- embedding every component constructor in every component's props contract.
 export type AppHandle = {
+    diagnostics: Diagnostics,
     render: (self: AppHandle, content: Descriptor | ((any) -> Node)) -> AppHandle,
     run: (self: AppHandle) -> (), flush: (self: AppHandle) -> (),
     find: (self: AppHandle, id: string) -> Element?,
@@ -385,6 +391,7 @@ export type AppHandle = {
     getSemantics: (self: AppHandle) -> { any },close: (self: AppHandle) -> (),destroy: (self: AppHandle) -> (),
 }
 export type App = {
+    diagnostics: Diagnostics,
     render: (self: App, content: Descriptor | ((any) -> Node)) -> App,
     run: (self: App) -> (),
     flush: (self: App) -> (),

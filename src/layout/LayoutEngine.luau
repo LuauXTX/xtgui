@@ -7,7 +7,24 @@ local Text = require("../rendering/TextLayout")
 local Backend = require("../rendering/Backend")
 local Geometry = require("../rendering/Geometry")
 local State = require("../core/State")
+local Diagnostics = require("../core/Diagnostics")
 local L = {}
+local function sameBounds(a, b)
+    return a.x == b.x and a.y == b.y and a.width == b.width and a.height == b.height
+end
+local function layoutCallback(node, previous)
+    if sameBounds(node.box, previous) then
+        return
+    end
+    local bounds = table.clone(node.box)
+    table.insert(node.app._afterLayout, function()
+        if node.alive and node.props.onLayout then
+            Diagnostics.call("onLayout " .. Diagnostics.node(node), function()
+                node.props.onLayout(bounds, node, previous)
+            end)
+        end
+    end)
+end
 local function equal(a, b, depth)
     if a == b then
         return true
@@ -261,6 +278,8 @@ function L.arrange(node, x, y, width, height)
         width = 0
         height = 0
     end
+    width = math.max(0, width)
+    height = math.max(0, height)
     local b = node.box
     local changed = b.x ~= x or b.y ~= y or b.width ~= width or b.height ~= height
     if not changed and not node.layoutDirty then
@@ -279,11 +298,15 @@ function L.arrange(node, x, y, width, height)
         and node.props.onLayout
         and not node.app.preflight
     then
-        table.insert(node.app._afterLayout, function()
-            if node.alive then
-                node.props.onLayout(node:getBounds(), node, previous)
+        local changes = node.app._layoutChanges
+        if changes then
+            if not changes.before[node] then
+                changes.before[node] = previous
+                table.insert(changes.order, node)
             end
-        end)
+        else
+            layoutCallback(node, previous)
+        end
     end
     if type(node.kind) == "table" then
         if node.children[1] then
@@ -477,7 +500,7 @@ function L.arrange(node, x, y, width, height)
     end
     node.layoutDirty = false
 end
-function L.run(app)
+local function runLayout(app)
     if not app.root then
         return
     end
@@ -526,5 +549,23 @@ function L.run(app)
     anchors(app.root)
     app.diagnostics.layoutTime = os.clock() - started
     app.diagnostics.layouts += 1
+end
+function L.run(app)
+    if not app.root then
+        return
+    end
+    local previous = app._layoutChanges
+    local changes = { before = {}, order = {} }
+    app._layoutChanges = changes
+    local ok, err = pcall(runLayout, app)
+    app._layoutChanges = previous
+    if not ok then
+        error(err, 0)
+    end
+    -- Portal anchoring can arrange a node more than once. Only the final bounds
+    -- relative to the start of this layout are observable by application code.
+    for _, node in ipairs(changes.order) do
+        layoutCallback(node, changes.before[node])
+    end
 end
 return L

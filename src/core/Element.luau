@@ -46,6 +46,19 @@ function Element:setProps(properties)
         "XTGUI setProps cannot change an element's key"
     )
     local props = table.clone(self._nextDescriptor and self._nextDescriptor.props or self.rawProps)
+    local changed = false
+    for key, value in pairs(properties) do
+        if
+            not rawequal(props[key], value)
+            or (self.data.animated and self.data.animated[key] ~= nil)
+        then
+            changed = true
+            break
+        end
+    end
+    if not changed then
+        return self
+    end
     self._clearAnimated = self._clearAnimated or {}
     for key, value in pairs(properties) do
         props[key] = value

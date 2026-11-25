@@ -5,6 +5,8 @@ The package exports a typed public surface for Luau analysis: `gui.App`,
 Additional component contracts are exported from `src/Types.luau`. Constructors,
 callbacks and state values retain their types through ordinary package imports;
 the language server does not need package-specific completion rules.
+Custom data-view item records and user-defined theme tokens remain dynamic;
+annotate item callbacks for application-specific record fields.
 
 ## Applications
 

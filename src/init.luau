@@ -1,4 +1,11 @@
 local Application = require("./core/Application")
+local Types = require("./Types")
+export type State<T> = Types.State<T>
+export type App = Types.App
+export type AppOptions = Types.AppOptions
+export type Element = Types.Element
+export type Props = Types.Props
+export type Style = Types.Style
 local State = require("./core/State")
 local Component = require("./core/Component")
 local Theme = require("./styling/Theme")
@@ -45,4 +52,4 @@ local Semantics = require("./accessibility/Semantics")
 function Application:getSemantics()
     return Semantics.snapshot(self)
 end
-return gui
+return (gui :: any) :: Types.Gui

@@ -1,5 +1,11 @@
 # Public API
 
+The package exports a typed public surface for Luau analysis: `gui.App`,
+`gui.AppOptions`, `gui.State<T>`, `gui.Element`, `gui.Props`, and `gui.Style`.
+Additional component contracts are exported from `src/Types.luau`. Constructors,
+callbacks and state values retain their types through ordinary package imports;
+the language server does not need package-specific completion rules.
+
 ## Applications
 
 `gui.createApp(options)` creates a retained tree/resource owner. Options:

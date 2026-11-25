@@ -1,0 +1,146 @@
+--!strict
+-- Public contracts for consumers and static analysis. No native resources are
+-- created here. Implementation-only tree/scheduler details remain private.
+export type State<T> = {
+    get:(self:State<T>)->T, set:(self:State<T>,value:T)->boolean,
+    update:(self:State<T>,callback:(T)->T)->boolean,
+    subscribe:(self:State<T>,callback:(T)->())->()->(), dispose:(self:State<T>)->(),
+}
+export type Computed<T> = {
+    get:(self:Computed<T>)->T, subscribe:(self:Computed<T>,callback:(T)->())->()->(),
+    dispose:(self:Computed<T>)->(),
+}
+export type Binding<T> = T | State<T> | Computed<T>
+export type Ref<T> = {current:T?}
+export type Bounds = {x:number,y:number,width:number,height:number}
+export type Color = string | {number}
+export type Dimension = number | string
+export type Spacing = number | {number} | {top:number?,right:number?,bottom:number?,left:number?}
+export type Transform = {x:number?,y:number?,rotation:number?,scaleX:number?,scaleY:number?}
+export type Style = {
+    width:Dimension?,height:Dimension?,minWidth:Dimension?,minHeight:Dimension?,maxWidth:Dimension?,maxHeight:Dimension?,
+    x:number?,y:number?,top:Dimension?,right:Dimension?,bottom:Dimension?,left:Dimension?,position:("relative"|"absolute")?,
+    padding:Spacing?,margin:Spacing?,gap:number?,rowGap:number?,columnGap:number?,
+    flexGrow:number?,flexShrink:number?,flexBasis:Dimension?,
+    alignItems:("start"|"center"|"end"|"stretch")?,alignSelf:("start"|"center"|"end"|"stretch")?,
+    justifyContent:("start"|"center"|"end"|"space-between"|"space-around"|"space-evenly")?,
+    direction:("horizontal"|"vertical")?,columns:(number|{Dimension})?,rows:{Dimension}?,
+    gridRow:number?,gridColumn:number?,rowSpan:number?,columnSpan:number?,
+    background:Color?,color:Color?,borderColor:Color?,borderWidth:number?,radius:number?,opacity:number?,
+    fontSize:number?,fontFamily:string?,fontWeight:(string|number)?,fontPath:string?,lineHeight:number?,
+    textAlign:("start"|"center"|"end")?,verticalAlign:string?,zIndex:number?,cursor:string?,
+    overflow:("hidden"|"visible")?,display:("flex"|"none")?,transform:Transform?,
+    shadow:{x:number?,y:number?,blur:number?,color:Color?}?,
+    hover:Style?,active:Style?,focused:Style?,disabled:Style?,
+}
+export type Theme = string | {
+    colors:{[string]:Color}?,spacing:number?,radius:number?,
+    components:{[string]:Style}?,fontFamily:string?,fontSize:number?,
+}
+export type Event = {
+    type:string,target:Element?,currentTarget:Element?,x:number?,y:number?,key:string?,code:string?,
+    button:string?,text:string?,shift:boolean?,control:boolean?,alt:boolean?,super:boolean?,
+    stopPropagation:(self:Event)->(),preventDefault:(self:Event)->(),
+    capturePointer:(self:Event)->(),releasePointer:(self:Event)->(),defaultPrevented:boolean,propagationStopped:boolean,app:App,
+}
+export type Descriptor = {type:string|((any)->Node)|{render:(any)->Node},props:any,key:(string|number)?}
+export type Node = Descriptor | false | nil
+export type Font = {dispose:(self:Font)->(),isDisposed:(self:Font)->boolean}
+export type ImageResource = {dispose:(self:ImageResource)->(),isDisposed:(self:ImageResource)->boolean,getSize:(self:ImageResource)->(number,number)}
+export type Frame = {
+    deltaTime:number,
+    rect:(self:Frame,options:{x:number?,y:number?,width:number,height:number,color:{number}?,radius:number?,outline:boolean?,lineWidth:number?})->(),
+    line:(self:Frame,options:{x1:number?,y1:number?,x2:number?,y2:number?,width:number?,color:{number}?})->(),
+    text:(self:Frame,options:{text:string,font:Font,x:number?,y:number?,color:{number}?})->(),
+    image:(self:Frame,options:{image:ImageResource,x:number?,y:number?,width:number?,height:number?,color:{number}?})->(),
+    pushClip:(self:Frame,bounds:Bounds)->(),popClip:(self:Frame)->(),
+    pushTransform:(self:Frame,transform:Transform)->(),popTransform:(self:Frame)->(),
+}
+export type Props = Style & {
+    id:string?,key:(string|number)?,children:{Node}?,style:(Style|{Style})?,theme:Theme?,disabled:Binding<boolean>?,
+    ref:(Ref<Element>|((Element?)->()))?,hoverStyle:Style?,activeStyle:Style?,focusedStyle:Style?,disabledStyle:Style?,
+    transition:{duration:number?,easing:(string|((number)->number))?,properties:{string}?}?,
+    role:string?,ariaLabel:string?,tabIndex:number?,focusable:boolean?,
+    onMount:((Element)->())?,onUnmount:((Element)->())?,onLayout:((Bounds,Element,Bounds?)->())?,
+    onClick:((Event,Element)->())?,onActivate:((Event,Element)->())?,
+    onMouseDown:((Event,Element)->())?,onMouseUp:((Event,Element)->())?,onMouseMove:((Event,Element)->())?,
+    onMouseEnter:((Event,Element)->())?,onMouseLeave:((Event,Element)->())?,
+    onKeyDown:((Event,Element)->())?,onKeyUp:((Event,Element)->())?,onFocus:((Event,Element)->())?,onBlur:((Event,Element)->())?,
+}
+export type TextProps = Props & {text:(Binding<string>|Binding<number>)?,wrap:boolean?}
+export type ButtonProps = TextProps & {icon:string?}
+export type TextInputProps = Props & {
+    value:Binding<string>?,defaultValue:string?,onChange:((string,Element)->())?,placeholder:string?,
+    readOnly:boolean?,password:boolean?,maxLength:number?,onSubmit:((string,Element)->())?,wrap:boolean?,acceptTab:boolean?,
+}
+export type CheckProps = TextProps & {checked:Binding<boolean>?,defaultChecked:boolean?,group:string?,onChange:((boolean,Element)->())?}
+export type SliderProps = Props & {min:number?,max:number?,step:number?,value:Binding<number>?,defaultValue:number?,onChange:((number,Element)->())?}
+export type ImageProps = Props & {source:string,fit:("contain"|"stretch")?,tint:Color?,alt:string?}
+export type ScrollProps = Props & {onScroll:(({x:number,y:number,viewportWidth:number,viewportHeight:number},Element)->())?}
+export type CanvasProps = Props & {onPaint:(Frame,Bounds,Element)->()}
+export type Option = string | number | {label:string,value:any,key:(string|number)?,disabled:boolean?}
+export type SelectProps = Props & {items:{Option}?,options:{Option}?,value:Binding<any>?,defaultValue:any,onChange:((any)->())?,placeholder:string?,maxHeight:number?}
+export type TabsProps = Props & {tabs:{{key:string|number,label:string,content:Node,children:{Node}?,disabled:boolean?}},value:Binding<string|number>?,defaultValue:(string|number)?,onChange:((string|number)->())?,keepAlive:boolean?}
+export type AccordionProps = Props & {items:{{key:string|number,label:string,content:Node,children:{Node}?,disabled:boolean?}},value:Binding<any>?,defaultValue:any,onChange:((any)->())?,multiple:boolean?,contentPadding:number?}
+export type ModalProps = Props & {open:Binding<boolean>?,defaultOpen:boolean?,onChange:((boolean)->())?,onDismiss:(()->())?,dismissible:boolean?,title:string?,backdropColor:Color?}
+export type PopoverProps = ModalProps & {trigger:Node,anchor:(Element|Ref<Element>)?,trapFocus:boolean?,triggerWidth:number?,triggerHeight:number?}
+export type TooltipProps = Props & {text:string,delay:number?}
+export type MenuItem = {label:string,value:any,disabled:boolean?,onSelect:((any)->())?}
+export type ContextMenuProps = Props & {items:{MenuItem},onSelect:((any)->())?}
+export type SplitPaneProps = Props & {first:Node,second:Node,ratio:Binding<number>?,defaultRatio:number?,onChange:((number)->())?,minFirst:number?,minSecond:number?,handleSize:number?,keyboardStep:number?}
+export type ListProps = Props & {
+    items:{any},itemKey:((any,number)->(string|number))?,renderItem:((any,number,boolean)->Node)?,rowHeight:number?,overscan:number?,itemPadding:Spacing?,
+    value:Binding<string|number>?,defaultValue:(string|number)?,onChange:((string|number)->())?,onSelect:((any,number)->())?,onActivate:((any,number)->())?,itemRole:string?,
+}
+export type TableProps = ListProps & {
+    columns:{{key:string,label:string,width:number?,grow:number?,sortable:boolean?,render:((any,any,number,boolean)->Node)?}},
+    headerHeight:number?,sortable:boolean?,onSort:((string)->())?,
+}
+export type TreeItem = {key:string|number,label:string,children:{TreeItem}?}
+export type TreeProps = ListProps & {expanded:Binding<{[string|number]:boolean}>?,defaultExpanded:{[string|number]:boolean}?,onExpandedChange:(({[string|number]:boolean})->())?,indent:number?,getChildren:((TreeItem)->{TreeItem})?}
+export type Element = {
+    id:number,props:Props,key:(string|number)?,parent:Element?,children:{Element},alive:boolean,box:Bounds,renderCount:number,app:App,
+    setProps:(self:Element,patch:{[string]:any})->Element,destroy:(self:Element)->(),getBounds:(self:Element)->Bounds,
+    getChildren:(self:Element)->{Element},find:(self:Element,id:string)->Element?,findKey:(self:Element,key:string|number)->Element?,
+    focus:(self:Element)->boolean,capturePointer:(self:Element)->string,releasePointer:(self:Element)->(),scrollTo:(self:Element,x:number,y:number)->boolean,
+}
+export type AppOptions = {
+    title:string?,width:number?,height:number?,theme:Theme?,resizable:boolean?,visible:boolean?,vsync:boolean?,captureSensitivity:number?,
+    fontFiles:{[string]:string|{[string|number]:string}}?,clipboard:{get:()->string,set:(string)->()}?,
+    onReady:((App)->())?,onFrame:((number,App)->())?,onResize:((any,App)->())?,onClose:((App)->boolean?)?,onError:((string,App)->())?,
+}
+export type App = {
+    render:(self:App,content:Node|((Gui)->Node))->App,run:(self:App)->(),flush:(self:App)->(),find:(self:App,id:string)->Element?,
+    setTheme:(self:App,theme:Theme)->(),resize:(self:App,width:number,height:number)->(),invalidate:(self:App,element:Element?)->(),
+    shortcut:(self:App,chord:string,callback:(Event)->boolean?)->()->(),after:(self:App,seconds:number,callback:()->())->()->(),
+    loadFont:(self:App,path:string?,size:number)->Font,loadImage:(self:App,path:string)->ImageResource,
+    getSemantics:(self:App)->{any},close:(self:App)->(),destroy:(self:App)->(),
+}
+export type Tween = {status:"running"|"completed"|"cancelled",element:Element,cancel:(self:Tween)->()}
+export type TweenOptions = {duration:number?,delay:number?,easing:(string|((number)->number))?,["repeat"]:number?,reverse:boolean?,onUpdate:((number,Tween)->())?,onComplete:((Tween)->())?,onCancel:((Tween)->())?}
+export type Timeline = {
+    to:(self:Timeline,element:Element,properties:Style,options:TweenOptions?,at:number?)->Timeline,
+    wait:(self:Timeline,seconds:number)->Timeline,
+    parallel:(self:Timeline,steps:{{element:Element,properties:Style,options:TweenOptions?}})->Timeline,
+    play:(self:Timeline,options:{onComplete:((Timeline)->())?}?)->Timeline,cancel:(self:Timeline)->(),status:"idle"|"running"|"completed"|"cancelled",
+}
+export type Constructor<P> = ((props:P)->Descriptor) & ((self:unknown,props:P)->Descriptor)
+export type Gui = {
+    version:string,
+    createApp:(options:AppOptions?)->App,run:(apps:{App})->(),
+    state:<T>(initial:T)->State<T>,computed:<T>(callback:()->T)->Computed<T>,effect:(callback:()->(()->())?)->()->(),
+    batch:(callback:()->())->(),ref:<T>(initial:T?)->Ref<T>,onCleanup:(callback:()->())->(),
+    component:<P>(render:(P)->Node,name:string?)->((P)->Descriptor),style:(style:Style)->Style,setTheme:(theme:Theme)->(),
+    useApp:()->App,useViewport:()->{width:number,height:number},
+    tween:(element:Element,properties:Style,options:TweenOptions?)->Tween,timeline:()->Timeline,
+    Text:Constructor<TextProps>,Button:Constructor<ButtonProps>,IconButton:Constructor<ButtonProps>,
+    TextInput:Constructor<TextInputProps>,TextArea:Constructor<TextInputProps>,
+    Checkbox:Constructor<CheckProps>,RadioButton:Constructor<CheckProps>,Switch:Constructor<CheckProps>,
+    Slider:Constructor<SliderProps>,ProgressBar:Constructor<SliderProps>,Image:Constructor<ImageProps>,
+    Row:Constructor<Props>,Column:Constructor<Props>,Container:Constructor<Props>,Stack:Constructor<Props>,Grid:Constructor<Props>,Spacer:Constructor<Props>,Separator:Constructor<Props>,
+    ScrollView:Constructor<ScrollProps>,Canvas:Constructor<CanvasProps>,SplitPane:Constructor<SplitPaneProps>,
+    Select:Constructor<SelectProps>,Dropdown:Constructor<SelectProps>,Tabs:Constructor<TabsProps>,Accordion:Constructor<AccordionProps>,
+    Modal:Constructor<ModalProps>,Popover:Constructor<PopoverProps>,Tooltip:Constructor<TooltipProps>,ContextMenu:Constructor<ContextMenuProps>,
+    ListView:Constructor<ListProps>,Table:Constructor<TableProps>,TreeView:Constructor<TreeProps>,
+}
+return {}

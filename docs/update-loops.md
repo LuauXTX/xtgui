@@ -79,10 +79,13 @@ for genuine effect/layout loops.
 `tests/native-update-loops.luau` runs both an empty window and a stateful/effect
 window for three completed GPU frames. The full `tests/run.py --gui` suite also
 checks existing widgets, examples and unavailable-adapter cleanup. On Windows,
-43 CPU tests and these GPU checks passed using the native LuauXTX executable.
+44 CPU tests and these GPU checks passed using the native LuauXTX executable.
 Linux/macOS hosted runs remain separate CI evidence.
 
-`tests/project-smoke.luau` can verify an actual installed consumer without editing
-its source: pass the entrypoint and installed `core/Application.luau` as absolute
-paths. It adds only a test frame observer/closer and runs the real application
-for three completed frames. Normal applications do not close automatically.
+`tests/project-smoke.py --runtime /path/to/luauxtx --project /path/to/project`
+verifies an actual installed consumer without editing its source. A temporary
+driver beside the entrypoint preserves real relative/package resolution. It adds
+only a test frame observer/closer and executes the unchanged entrypoint as a
+script for three completed frames; it does not wrap an event loop inside the
+runtime's synchronous require boundary. The driver is removed afterward. Normal
+applications do not close automatically.

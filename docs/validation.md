@@ -31,6 +31,13 @@ installed packages. Use `stylua --verify` when formatting to check AST equivalen
 
 ## Coverage
 
+The update-loop regression run passes 44 CPU tests, including empty-tree flush,
+stable state/effect/ref identity, deferred effects, no-op updates, final portal
+bounds, preserved dirty work after a failed layout, and actionable bounded
+diagnostics for real cycles. Both new native update-loop modes complete three
+GPU frames, alongside the existing widget integration and five example checks.
+See [the fix and causal diagnostics](update-loops.md).
+
 The XTest suite exercises component identity, keyed reorder, rejected renders,
 state/computed dependency changes, batched subscriptions, effect/state disposal,
 hook lifetime, custom component props/refs, nested flex and grid, percentages,

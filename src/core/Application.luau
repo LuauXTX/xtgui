@@ -193,12 +193,16 @@ function Application:flush()
             Scheduler.flush()
             if self._needsLayout or self._needsStyles then
                 trace.phase = "layout"
+                trace.consumedLayout = self._needsLayout
+                trace.consumedStyles = self._needsStyles
                 -- Consume this pass's work even for an empty application. New
                 -- invalidations during layout/callbacks belong to the next pass.
                 self._needsLayout = false
                 self._needsStyles = false
                 Layout.run(self)
                 Visual.update(self)
+                trace.consumedLayout = false
+                trace.consumedStyles = false
                 local after = self._afterLayout
                 self._afterLayout = {}
                 for _, callback in ipairs(after) do
@@ -241,6 +245,12 @@ function Application:flush()
     self.diagnostics.invalidationCount = trace.total
     self._flushTrace = nil
     if not ok then
+        if trace.consumedLayout then
+            self._needsLayout = true
+        end
+        if trace.consumedStyles then
+            self._needsStyles = true
+        end
         error(err, 0)
     end
 end

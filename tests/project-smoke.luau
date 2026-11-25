@@ -24,8 +24,11 @@ Application.runAll = function(apps)
     end
     return original(apps)
 end
-local ok, err = pcall(require, entry)
+-- Execute as a script, outside require's synchronous native module-loader
+-- boundary. gfx.run must be able to yield to LuauXTX's native event loop.
+local source = require("@luauxtx/system/fs").readSync(entry)
+local chunk = assert(loadstring(source, "@" .. entry))
+chunk()
 Application.runAll = original
-assert(ok, tostring(err))
 assert(completed >= 3, "Application did not complete three GPU frames")
 print("Actual application passed: " .. entry .. ", " .. completed .. " completed GPU frames")

@@ -5,7 +5,7 @@ function D.node(node)
         return "<application>"
     end
     local id = node.props and node.props.id
-    return (node.name or "node")
+    return tostring(node.name or "node"):sub(1, 80)
         .. "#"
         .. tostring(node.id or "?")
         .. (id and ("(" .. tostring(id):sub(1, 64) .. ")") or "")

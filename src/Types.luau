@@ -127,7 +127,7 @@ export type Event = {
     releasePointer: (self: Event) -> (),
     defaultPrevented: boolean,
     propagationStopped: boolean,
-    app: App,
+    app: AppHandle,
 }
 
 export type Descriptor = {
@@ -2195,14 +2195,14 @@ export type TreeProps = {
 
 export type Element = {
     id: number,
-    props: Props,
+    props: { [string]: any },
     key: (string | number)?,
     parent: Element?,
     children: { Element },
     alive: boolean,
     box: Bounds,
     renderCount: number,
-    app: App,
+    app: AppHandle,
     setProps: (self: Element, patch: { [string]: any }) -> Element,
     destroy: (self: Element) -> (),
     getBounds: (self: Element) -> Bounds,
@@ -2231,6 +2231,25 @@ export type AppOptions = {
     onResize: ((any, App) -> ())?,
     onClose: ((App) -> boolean?)?,
     onError: ((string, App) -> ())?,
+}
+-- Element/event owners expose the application methods without recursively
+-- embedding every component constructor in every component's props contract.
+
+export type AppHandle = {
+    render: (self: AppHandle, content: Descriptor | ((any) -> Node)) -> AppHandle,
+    run: (self: AppHandle) -> (),
+    flush: (self: AppHandle) -> (),
+    find: (self: AppHandle, id: string) -> Element?,
+    setTheme: (self: AppHandle, theme: Theme) -> AppHandle,
+    resize: (self: AppHandle, width: number, height: number) -> AppHandle,
+    invalidate: (self: AppHandle, element: Element?) -> (),
+    shortcut: (self: AppHandle, chord: string, callback: (Event) -> boolean?) -> () -> (),
+    after: (self: AppHandle, seconds: number, callback: () -> ()) -> () -> (),
+    loadFont: (self: AppHandle, path: string?, size: number) -> Font,
+    loadImage: (self: AppHandle, path: string) -> ImageResource,
+    getSemantics: (self: AppHandle) -> { any },
+    close: (self: AppHandle) -> (),
+    destroy: (self: AppHandle) -> (),
 }
 
 export type App = {

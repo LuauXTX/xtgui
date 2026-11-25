@@ -415,7 +415,7 @@ export type Timeline = {
     cancel: (self: Timeline) -> (),
     status: "idle" | "running" | "completed" | "cancelled",
 }
-export type Constructor<P> = ((props: P) -> Descriptor) & ((self: unknown, props: P) -> Descriptor)
+export type Constructor<P> = (props: P) -> Descriptor
 export type Gui = {
     version: string,
     createApp: (options: AppOptions?) -> App,

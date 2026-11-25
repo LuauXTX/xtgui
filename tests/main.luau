@@ -3,6 +3,7 @@ require("./reactivity")(suite)
 require("./application")(suite)
 require("./advanced")(suite)
 require("./edge-cases")(suite)
+require("./update-loops")(suite)
 local result = suite.run()
 local failed = 0
 for _, test in ipairs(result.tests) do

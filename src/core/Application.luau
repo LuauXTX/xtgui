@@ -173,11 +173,13 @@ function Application:flush()
                 callback()
             end
             Scheduler.flush()
-            if self.root and (self._needsLayout or self._needsStyles) then
-                Layout.run(self)
-                Visual.update(self)
+            if self._needsLayout or self._needsStyles then
+                -- Consume this pass's work even for an empty application. New
+                -- invalidations during layout/callbacks belong to the next pass.
                 self._needsLayout = false
                 self._needsStyles = false
+                Layout.run(self)
+                Visual.update(self)
                 local after = self._afterLayout
                 self._afterLayout = {}
                 for _, callback in ipairs(after) do
